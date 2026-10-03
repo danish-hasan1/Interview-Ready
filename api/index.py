@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile  # noqa: E402
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
@@ -16,21 +16,17 @@ from interview_ready.interview import build_queue, start_state, step  # noqa: E4
 from interview_ready.parsing import extract_text  # noqa: E402
 
 MAX_UPLOAD = 4 * 1024 * 1024
-HOSTED = bool(os.environ.get("SUPABASE_URL"))
+HOSTED = bool(os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
 app = FastAPI(title="Interview Ready", docs_url=None, redoc_url=None)
-_local = None
+_store = None
 
 
-def get_store(authorization: str = Header(default="")):
-    """Hosted: per-user Supabase client from the caller's JWT (RLS enforces isolation).
-    Local: shared SQLite, no login."""
-    global _local
-    if HOSTED:
-        if not authorization.lower().startswith("bearer "):
-            raise HTTPException(401, "Sign in required")
-        return SupabaseStore(authorization.split(" ", 1)[1])
-    _local = _local or Store()
-    return _local
+def get_store():
+    """Supabase when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set, else local SQLite."""
+    global _store
+    if _store is None:
+        _store = SupabaseStore() if HOSTED else Store()
+    return _store
 
 
 class ClaimIn(BaseModel):

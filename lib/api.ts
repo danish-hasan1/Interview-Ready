@@ -1,14 +1,5 @@
-import { supabase } from "./supabase";
-
-async function authHeader(): Promise<Record<string, string>> {
-  if (!supabase) return {};
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { ...(await authHeader()) };
+  const headers: Record<string, string> = {};
   if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
   const res = await fetch(`/api${path}`, { ...init, headers: { ...headers, ...(init.headers as object) } });
   if (!res.ok) {

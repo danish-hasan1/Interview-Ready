@@ -1,4 +1,4 @@
-"""Storage backends: local SQLite (default) and Supabase Postgres (per-user, RLS)."""
+"""Storage backends: local SQLite (default) and Supabase Postgres (single owner)."""
 import json
 import os
 import sqlite3
@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 from . import config
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, user_id TEXT DEFAULT 'local', kind TEXT, name TEXT, text TEXT, created TEXT);
-CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, user_id TEXT DEFAULT 'local', doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
-CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, user_id TEXT DEFAULT 'local', role TEXT, notes TEXT, created TEXT);
-CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, user_id TEXT DEFAULT 'local', session_id INTEGER, question TEXT, kind TEXT, answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TEXT, text TEXT, created TEXT);
+CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
+CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
+CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
 TABLES = ["documents", "claims", "sessions", "answers"]
@@ -117,17 +117,18 @@ class Store(BaseStore):
 
 
 class SupabaseStore(BaseStore):
-    """PostgREST with the *user's* JWT, so Row Level Security isolates each user.
-    The service-role key is never used here. user_id defaults to auth.uid() in SQL."""
+    """Single-owner Supabase Postgres via PostgREST. Uses the service-role key, which stays
+    server-side only (never NEXT_PUBLIC). Tables have RLS on with no policies, so the public
+    anon key cannot read them. Keep the deployment itself private (Vercel Deployment Protection)."""
 
-    def __init__(self, access_token: str, url=None, anon_key=None):
+    def __init__(self, url=None, service_key=None):
         import httpx
 
         url = (url or os.environ["SUPABASE_URL"]).rstrip("/")
-        anon_key = anon_key or os.environ["SUPABASE_ANON_KEY"]
+        key = service_key or os.environ["SUPABASE_SERVICE_ROLE_KEY"]
         self.http = httpx.Client(
             base_url=f"{url}/rest/v1",
-            headers={"apikey": anon_key, "Authorization": f"Bearer {access_token}",
+            headers={"apikey": key, "Authorization": f"Bearer {key}",
                      "Content-Type": "application/json", "Prefer": "return=representation"},
             timeout=20,
         )

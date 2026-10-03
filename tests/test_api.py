@@ -1,6 +1,7 @@
 import os
 
 os.environ.pop("SUPABASE_URL", None)
+os.environ.pop("SUPABASE_SERVICE_ROLE_KEY", None)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -12,7 +13,7 @@ JD = "- Strong P&L ownership and commercial acumen\n- Proven experience reducing
 
 
 def client():
-    index._local = Store(":memory:")
+    index._store = Store(":memory:")
     return TestClient(index.app)
 
 

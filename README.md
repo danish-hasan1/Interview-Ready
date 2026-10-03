@@ -18,12 +18,11 @@ npm run dev                                    # terminal 2 -> http://localhost:
 .venv/bin/python -m pytest
 ```
 
-## Deploy (Vercel + Supabase)
+## Deploy (Vercel + Supabase), single owner, no login
 1. Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor.
-2. Supabase Auth: enable email provider; add the Vercel URL under Auth → URL configuration.
-3. Vercel env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
-   Never add the service-role key; the API uses each caller's JWT so RLS isolates users.
-4. Import the GitHub repo in Vercel. Framework: Next.js. `vercel.ts` routes `/api/*` to the Python function.
+2. Vercel env vars (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
+3. Import the GitHub repo in Vercel. Framework: Next.js. `vercel.ts` routes `/api/*` to the Python function.
+4. **Turn on Vercel Deployment Protection** (Project Settings -> Deployment Protection). The app has no login, so this is what keeps your CV private.
 
 ## Privacy
-Hosted mode stores CV text and answers in your Supabase project, per user, behind RLS. Export and delete-all live in the Profile tab. No external LLM calls.
+Hosted mode stores CV text and answers in your Supabase project. Tables have RLS on with no policies, so only the server (service-role key) can read them. Export and delete-all live in the Profile tab. No external LLM calls.
