@@ -38,6 +38,6 @@ def preset(name: str) -> dict:
     with open(PRESET_DIR / f"{name}.json", encoding="utf-8") as f:
         return json.load(f)
 
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 # 0 = unlimited (owner's choice). Set AI_DAILY_CAP to bound spend.
 AI_DAILY_CAP = int(os.environ.get("AI_DAILY_CAP", "0") or 0)

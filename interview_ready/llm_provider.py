@@ -39,7 +39,7 @@ class GroqProvider(LLMProvider):
     """OpenAI-compatible chat completions on Groq. The key is read at call time from the environment."""
 
     def __init__(self, model: str | None = None, transport: httpx.BaseTransport | None = None):
-        self.model = model or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.model = model or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
         self.transport = transport
 
     def complete(self, prompt: str, system: str = "", json_mode: bool = False) -> str:
@@ -47,7 +47,9 @@ class GroqProvider(LLMProvider):
         if not key:
             raise LLMUnavailable("Groq key not configured")
         messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
-        payload = {"model": self.model, "messages": messages, "temperature": 0.2, "max_completion_tokens": 1800}
+        payload = {"model": self.model, "messages": messages, "temperature": 0.2, "max_completion_tokens": 3000}
+        if self.model.startswith("openai/gpt-oss"):
+            payload["reasoning_effort"] = "low"  # reasoning tokens count against the limit; keep answers fast and cheap
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
         last = "unknown"
