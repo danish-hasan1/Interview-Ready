@@ -1,14 +1,15 @@
 "use client";
 import { post } from "@/lib/api";
 import { OWNERSHIP, type Analysis, type Claim } from "@/lib/types";
-import { Empty, PageTitle } from "./ui";
+import { AnimatePresence, motion } from "motion/react";
+import { Btn, Empty, PageTitle, itemV, listV } from "./ui";
 
 const TYPE_STYLE = { metric: "bg-cobalt/10 text-cobalt", action: "bg-ink/10 text-ink", title: "bg-amber/15 text-amber" } as const;
 
 export default function Claims({ analysis, setAnalysis, goInputs, next }: {
   analysis: Analysis | null; setAnalysis: (a: Analysis) => void; goInputs: () => void; next: () => void;
 }) {
-  if (!analysis) return <Empty text="No CV analysed yet. Upload your CV first." action={<button className="btn btn-primary" onClick={goInputs}>Go to inputs</button>} />;
+  if (!analysis) return <Empty text="No CV analysed yet. Upload your CV first." action={<Btn onClick={goInputs}>Go to inputs</Btn>} />;
 
   async function setOwnership(i: number, ownership: Claim["ownership"]) {
     if (!analysis) return;
@@ -24,9 +25,9 @@ export default function Claims({ analysis, setAnalysis, goInputs, next }: {
       <PageTitle eyebrow="Step 2 · CV claims" title={`${analysis.claims.length} claims. Can you defend each one?`}>
         {metrics} carry a number — those get pressed hardest. Set how much you truly owned each one; the questions change with it.
       </PageTitle>
-      <div className="space-y-3">
+      <motion.div className="space-y-3" variants={listV} initial="hidden" animate="show">
         {analysis.claims.map((c, i) => (
-          <details key={i} className="card rise group overflow-hidden" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
+          <motion.details key={i} variants={itemV} className="card group overflow-hidden">
             <summary className="flex cursor-pointer list-none items-start gap-3 p-4 hover:bg-paper/60">
               <span className={`label mt-0.5 shrink-0 rounded px-1.5 py-0.5 ${TYPE_STYLE[c.type]}`}>{c.type}</span>
               <span className="flex-1">{c.text}</span>
@@ -38,8 +39,12 @@ export default function Claims({ analysis, setAnalysis, goInputs, next }: {
                 <p className="label mb-2">Your ownership</p>
                 <div role="radiogroup" aria-label="Ownership" className="flex flex-wrap gap-1.5">
                   {OWNERSHIP.map((o) => (
-                    <button key={o} role="radio" aria-checked={c.ownership === o} onClick={() => setOwnership(i, o)}
-                      className={`rounded-full border px-3 py-1 text-sm transition-colors ${c.ownership === o ? "border-ink bg-ink text-white" : "border-line bg-card hover:border-ink"}`}>{o}</button>
+                    <motion.button key={o} role="radio" aria-checked={c.ownership === o} onClick={() => setOwnership(i, o)}
+                      whileTap={{ scale: 0.93 }} whileHover={{ y: -1 }}
+                      className={`relative rounded-full border px-3 py-1 text-sm transition-colors ${c.ownership === o ? "border-ink text-white" : "border-line bg-card hover:border-ink"}`}>
+                      {c.ownership === o && <motion.span layoutId={`own-${i}`} className="absolute inset-0 rounded-full bg-ink" transition={{ type: "spring", stiffness: 500, damping: 32 }} />}
+                      <span className="relative">{o}</span>
+                    </motion.button>
                   ))}
                 </div>
               </div>
@@ -47,14 +52,19 @@ export default function Claims({ analysis, setAnalysis, goInputs, next }: {
               <div>
                 <p className="label mb-2">They will ask</p>
                 <ul className="space-y-1.5 text-sm">
-                  {c.questions.map((q, k) => <li key={k} className="border-l-2 border-pen/60 pl-3">{q}</li>)}
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {c.questions.map((q, k) => (
+                      <motion.li key={q} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                        transition={{ delay: k * 0.04 }} className="border-l-2 border-pen/60 pl-3">{q}</motion.li>
+                    ))}
+                  </AnimatePresence>
                 </ul>
               </div>
             </div>
-          </details>
+          </motion.details>
         ))}
-      </div>
-      <div className="mt-6"><button className="btn btn-primary" onClick={next}>See gaps against the role <span aria-hidden>→</span></button></div>
+      </motion.div>
+      <div className="mt-6"><Btn onClick={next}>See gaps against the role <span aria-hidden>→</span></Btn></div>
     </section>
   );
 }

@@ -48,9 +48,7 @@ body {
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
 
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise .35s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .rise { animation: none; } * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* Red-pen margin note: the one signature device (interviewer pushback). */
 .pen-note { position: relative; border-left: 3px solid var(--pen); background: rgba(208, 58, 47, .06); border-radius: 4px 12px 12px 4px; padding: .85rem 1rem; }
