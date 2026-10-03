@@ -64,6 +64,9 @@ def extract_keywords(sent: str) -> list:
     return res[:6]
 
 
+_DATE_TAIL = re.compile(r"\s*(?:\(?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2})\s*[–—-]\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?(?:(?:19|20)\d{2}|present|current)\)?\s*$", re.IGNORECASE)
+
+
 def extract_claims(cv_text: str) -> list:
     s = preset("scoring")
     verbs = tuple(s["action_verbs"])
@@ -87,6 +90,11 @@ def extract_claims(cv_text: str) -> list:
                 ctype = "title"
             else:
                 continue
+            if ctype == "title":
+                sent = _DATE_TAIL.sub("", sent).strip(" -–—,")  # show the title, not the date range
+                key = sent.lower()
+                if key in seen or len(sent) < 6:
+                    continue
             seen.add(key)
             c = Claim(text=sent, type=ctype, numbers=numbers, keywords=extract_keywords(sent))
             c.questions = build_questions(c)

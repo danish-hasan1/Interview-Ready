@@ -28,15 +28,37 @@ def _verbs() -> set:
     return set(preset("scoring")["action_verbs"]) | set(preset("cv_rules")["extra_action_verbs"])
 
 
+_DATE = re.compile(r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2}\s*[–—-]\s*(?:(?:19|20)\d{2}|present|current)|\b(?:present|current)\b", re.IGNORECASE)
+_TITLE_WORDS = {"manager", "head", "director", "lead", "specialist", "engineer", "analyst", "consultant", "partner", "vp", "officer", "recruiter",
+                "executive", "coordinator", "associate", "senior", "chief", "intern", "assistant", "president"}
+
+
+def _is_header(line: str, bulleted: bool) -> bool:
+    """Job titles, company names, dates and section headings are not achievements."""
+    words = _words(line)
+    n = len(words)
+    first = words[0].lower().strip(",:") if words else ""
+    if line.isupper() and n <= 6:
+        return True
+    if _DATE.search(line) and n <= 14 and not re.search(r"\b(led|built|cut|reduced|increased|delivered|managed)\b", line, re.IGNORECASE):
+        return True  # "Head of Talent Acquisition May 2026 - Present"
+    if first in _verbs():
+        return False
+    if any(w.lower().strip(".,:-–") in _TITLE_WORDS for w in words) and n <= 10 and not bulleted:
+        return True
+    if not bulleted and n <= 9 and not _has_number(line) and not line.rstrip().endswith("."):
+        return True  # company, location, degree lines
+    return False
+
+
 def candidate_bullets(cv_text: str) -> list:
-    """Lines that read like achievements: bulleted, or sentence-like with enough words."""
+    """Lines that read like achievements. Titles, companies, dates and headings are excluded."""
     out = []
     for raw in cv_text.splitlines():
+        bulleted = bool(_BULLET.match(raw))
         line = _BULLET.sub("", raw).strip()
         words = _words(line)
-        if len(words) < 6:
-            continue
-        if line.isupper() or re.match(r"^[\w &/,-]+:?$", line) and len(words) <= 4:
+        if len(words) < 6 or _is_header(line, bulleted):
             continue
         out.append(line)
     return out

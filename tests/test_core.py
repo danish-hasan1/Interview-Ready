@@ -109,3 +109,25 @@ def test_claim_keywords_and_notes_plan():
     p = notes_plan("CEO is tough and blunt, finance background")
     assert p["max_followups"] == 2 and p["extras"]
     assert notes_plan("")["max_followups"] == 1
+
+
+def test_cv_headers_titles_and_dates_are_not_review_lines():
+    from interview_ready.cv_analysis import candidate_bullets
+    cv = """Danish Hasan
+Experience
+Head of Talent Acquisition May 2026 – Present
+Acme Corporation, London
+- Reduced time to hire from 62 to 38 days across 120 roles
+Manager – Talent Acquisition Mar 2022 – Jul 2022
+Led a team of 8 recruiters and managed a $1.2M agency budget across three regions
+Education
+MBA, London Business School 2015 – 2017
+"""
+    got = candidate_bullets(cv)
+    assert got == ["Reduced time to hire from 62 to 38 days across 120 roles",
+                   "Led a team of 8 recruiters and managed a $1.2M agency budget across three regions"]
+
+
+def test_title_claims_drop_date_ranges():
+    cs = extract_claims("Head of Talent Acquisition May 2026 – Present\nManager – Talent Acquisition Mar 2022 – Jul 2022\n")
+    assert [c.text for c in cs if c.type == "title"] == ["Head of Talent Acquisition", "Manager – Talent Acquisition"]
