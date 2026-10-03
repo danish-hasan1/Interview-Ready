@@ -46,3 +46,16 @@ def redact_cv(text: str) -> dict:
             removed["name"] = 1
         break  # only the first non-empty line can be the name header
     return {"text": "\n".join(lines), "removed": removed, "total": sum(removed.values())}
+
+
+def is_contact_line(line: str) -> bool:
+    """CV header lines (email, phone, links, location with separators) are never claims or achievements."""
+    s = line.strip()
+    if _EMAIL.search(s) or _URL.search(s):
+        return True
+    if any(_looks_like_phone(m.group(0)) for m in _PHONE.finditer(s)):
+        return True
+    parts = [x for x in re.split(r"\s*[·|•]\s*|\s{3,}", s) if x]
+    if len(parts) >= 3 and len(s) < 140 and not re.search(r"\b(led|built|cut|reduced|increased|managed|delivered)\b", s, re.IGNORECASE):
+        return True
+    return False

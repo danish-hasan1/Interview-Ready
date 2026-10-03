@@ -86,6 +86,8 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
 }) {
   const [filter, setFilter] = useState<"all" | Defence>("all");
   const [open, setOpen] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const LIMIT = 12;
 
   const rows: Row[] = useMemo(() => [
     ...analysis.claims.map((c, i) => ({ ref: c.text, kind: "claim" as const, label: c.text, claim: c, index: i })),
@@ -144,7 +146,7 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
 
       {visible.length === 0 && <p className="sheet p-6 text-muted">Nothing here yet. Practise to move items into this list.</p>}
       <motion.ul variants={listV} initial="hidden" animate="show" key={filter} className="space-y-2">
-        {visible.map(({ r, d }) => {
+        {(showAll ? visible : visible.slice(0, LIMIT)).map(({ r, d }) => {
           const isOpen = open === r.ref;
           return (
             <motion.li key={r.ref} variants={itemV} className="sheet overflow-hidden">
@@ -197,6 +199,9 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
           );
         })}
       </motion.ul>
+      {visible.length > LIMIT && (
+        <button onClick={() => setShowAll(!showAll)} className="label mt-3 underline hover:text-ink">{showAll ? "Show the top 12 only" : `Show all ${visible.length} (ranked by importance)`}</button>
+      )}
 
       {evidenced.length > 0 && (
         <details className="sheet mt-6 p-4">

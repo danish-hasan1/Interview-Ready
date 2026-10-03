@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass, field
 
 from .config import preset
+from .redact import is_contact_line
 
 OWNERSHIP_LEVELS = ["Owned", "Led", "Contributed", "Supported", "Exposure"]
 
@@ -26,8 +27,41 @@ class Claim:
 def _lines(text: str):
     for raw in text.splitlines():
         line = _BULLET.sub("", raw).strip()
-        if len(line) >= 12:
+        if len(line) >= 12 and not is_contact_line(line):
             yield line
+
+
+_SEP = re.compile(r"\s*[·|•❘❙│‖¦]\s*|\s{3,}")
+_NUM_LED = re.compile(r"^(?:[$£€]|EUR|USD|GBP|INR|AED)?\s?\d")
+
+
+def _line_claims(line: str):
+    """Skill and keyword lists are not claims. Number-led headline segments ('EUR 5M+ P&L Owned') are."""
+    segs = [s.strip() for s in _SEP.split(line) if s.strip()]
+    if len(segs) >= 3:
+        return [s for s in segs if _NUM_LED.match(s) and len(s.split()) >= 2]
+    return _sentences(line)
+
+
+def _tokens(s: str) -> set:
+    stop = set(preset("scoring")["stopwords"]) | {"a", "an", "of", "in", "to", "by", "as", "on", "at", "into", "through", "across"}
+    return {re.sub(r"(ing|ed|es|s)$", "", w) for w in re.findall(r"[a-z0-9$€£%+.]+", s.lower()) if w not in stop and len(w) > 1}
+
+
+def _similar(a: Claim, b: Claim) -> bool:
+    ta, tb = _tokens(a.text), _tokens(b.text)
+    if not ta or not tb:
+        return False
+    inter = len(ta & tb)
+    jac = inter / len(ta | tb)
+    shared_num = bool(set(a.numbers) & set(b.numbers))
+    return jac >= 0.45 or (shared_num and inter / min(len(ta), len(tb)) >= 0.5)
+
+
+def _importance(c: Claim) -> float:
+    s = preset("scoring")
+    low = c.text.lower()
+    return len(c.numbers) * 2 + sum(1 for t in s["impact"] if t in low) + (1 if low.split()[0] in s["action_verbs"] else 0)
 
 
 def _sentences(line: str):
@@ -73,7 +107,9 @@ def extract_claims(cv_text: str) -> list:
     titles = s["title_words"]
     claims, seen = [], set()
     for line in _lines(cv_text):
-        for sent in _sentences(line):
+        if line.isupper() and len(line.split()) <= 8:
+            continue  # section heading such as EXECUTIVE SUMMARY
+        for sent in _line_claims(line):
             key = sent.lower()
             if key in seen:
                 continue
@@ -99,6 +135,13 @@ def extract_claims(cv_text: str) -> list:
             c = Claim(text=sent, type=ctype, numbers=numbers, keywords=extract_keywords(sent))
             c.questions = build_questions(c)
             claims.append(c)
+    kept: list = []
+    for c in claims:  # CVs repeat the same achievement in the summary and again under each role
+        dup = next((i for i, k in enumerate(kept) if k.type == c.type != "title" and _similar(c, k)), None)  # distinct titles stay distinct
+        if dup is None:
+            kept.append(c)
+        elif (len(c.numbers), len(c.text)) > (len(kept[dup].numbers), len(kept[dup].text)):
+            kept[dup] = c
     order = {"metric": 0, "action": 1, "title": 2}
-    claims.sort(key=lambda c: order[c.type])
-    return claims
+    kept.sort(key=lambda c: (order[c.type], -_importance(c)))
+    return kept

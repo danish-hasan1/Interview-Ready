@@ -131,3 +131,34 @@ MBA, London Business School 2015 – 2017
 def test_title_claims_drop_date_ranges():
     cs = extract_claims("Head of Talent Acquisition May 2026 – Present\nManager – Talent Acquisition Mar 2022 – Jul 2022\n")
     assert [c.text for c in cs if c.type == "title"] == ["Head of Talent Acquisition", "Manager – Talent Acquisition"]
+
+
+def test_contact_header_lines_are_never_claims_or_review_lines():
+    from interview_ready.cv_analysis import candidate_bullets
+    cv = """Danish Hasan
+Bhopal, India   ·   +91 9981073000   ·   dhasan111@gmail.com   ·   linkedin.com/in/danish
+Head of Talent Acquisition
+- Reduced time to hire from 62 to 38 days across 120 roles
+"""
+    assert not any("9981" in c.text or "Bhopal" in c.text for c in extract_claims(cv))
+    assert not any("9981" in b or "@" in b for b in candidate_bullets(cv))
+
+
+def test_claims_are_deduplicated_ranked_and_lists_are_not_claims():
+    cv = """EXECUTIVE SUMMARY
+14+ Yrs TA & RPO Leadership  ❘  EUR 5M+ P&L Owned  ❘  240+ Consultants Managed
+Personally revived a dormant client account into a EUR 5M annual revenue stream and has held full P&L accountability.
+AI / LLM: Claude API  ·  Groq (Llama 3.3 70B)  ·  Prompt Engineering  ·  Scoring
+Experience
+- Revived a dormant client account into an active EUR 5M annual revenue stream through direct relationship rebuilding
+- Delivered 250+ hires for a global pharmaceutical enterprise following a competitive RFP win
+- Delivered 250+ hires for a global pharmaceutical enterprise following a competitive RFP win, and generated 3 renewals
+- Managed recruiter teams and sourcing channels across several concurrent hiring mandates
+"""
+    cs = extract_claims(cv)
+    texts = [c.text for c in cs]
+    assert not any("EXECUTIVE SUMMARY" in t for t in texts) and not any("Groq" in t or "Prompt Engineering" in t for t in texts)
+    assert any(t.startswith("EUR 5M+ P&L Owned") for t in texts) and any(t.startswith("240+ Consultants") for t in texts)
+    assert sum(1 for t in texts if "dormant client account" in t) == 1
+    assert sum(1 for t in texts if "250+ hires" in t) == 1 and any("3 renewals" in t for t in texts)  # keeps the richer version
+    assert cs[0].type == "metric" and cs[-1].type in ("action", "title")

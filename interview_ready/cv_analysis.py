@@ -3,6 +3,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from .config import preset
+from .redact import is_contact_line
 
 _BULLET = re.compile(r"^\s*(?:[-•*▪●◦‣–]|\d+[.)])\s*")
 _NUM = re.compile(r"(?:[$£€]\s?\d[\d,.]*\s?(?:k|m|bn)?)|(?:\d[\d,.]*\s?(?:%|k\b|m\b|bn\b|x\b))|\b\d+\b", re.IGNORECASE)
@@ -58,7 +59,7 @@ def candidate_bullets(cv_text: str) -> list:
         bulleted = bool(_BULLET.match(raw))
         line = _BULLET.sub("", raw).strip()
         words = _words(line)
-        if len(words) < 6 or _is_header(line, bulleted):
+        if len(words) < 6 or is_contact_line(line) or _is_header(line, bulleted):
             continue
         out.append(line)
     return out
