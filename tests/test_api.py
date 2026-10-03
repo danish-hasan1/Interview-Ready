@@ -62,3 +62,21 @@ def test_focus_drill_and_claim_status():
     refs = c.get("/api/profile").json()["refs"]
     assert refs[claim]["attempts"] >= 1
     assert c.get("/api/profile").json()["sessions"][0]["dims"]
+
+
+def test_cv_review_training_flow():
+    c = client()
+    assert c.get("/api/cv-review").json() == {"has_cv": False}
+    c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD})
+    r = c.get("/api/cv-review").json()
+    assert r["has_cv"] and r["review"]["score"] >= 0 and r["plan"]
+    t = c.get("/api/training").json()
+    assert t["lessons"] and t["plan"] and t["claim"]
+    chk = c.post("/api/training/check", json={"kind": "rewrite", "original": "Worked on hiring", "text": "Cut time to hire from 62 to 38 days"})
+    assert chk.status_code == 200 and chk.json()["improved"]
+    assert c.post("/api/training/check", json={"kind": "build", "lesson_id": "nope"}).status_code == 404
+    done = c.post("/api/training/complete", json={"lesson_id": "structure", "score": 7.5}).json()
+    assert done["progress"]["structure"]["attempts"] == 1
+    assert c.get("/api/training").json()["progress"]["structure"]["best"] == 7.5
+    c.delete("/api/data")
+    assert not c.get("/api/training").json()["progress"]

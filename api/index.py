@@ -10,10 +10,12 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile  # n
 from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
+from interview_ready.cv_analysis import analyse_cv
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
 from interview_ready.gaps import analyse_gaps, gap_items  # noqa: E402
 from interview_ready.interview import build_queue, start_state, step  # noqa: E402
 from interview_ready.parsing import extract_text  # noqa: E402
+from interview_ready import training  # noqa: E402
 
 MAX_UPLOAD = 4 * 1024 * 1024
 HOSTED = bool(os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
@@ -139,6 +141,73 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
     score, new_state = step(body.state, body.answer)
     store.save_answer(body.session_id, cur["question"], cur["kind"], body.answer, score, cur.get("ref", ""))
     return {"score": asdict(score), "state": new_state, "done": new_state["current"] is None}
+
+
+class CheckIn(BaseModel):
+    kind: str  # rewrite | build
+    lesson_id: str = ""
+    original: str = ""
+    text: str = ""
+    values: dict = {}
+
+
+class CompleteIn(BaseModel):
+    lesson_id: str
+    score: float
+
+
+def _context(store):
+    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    if not cv:
+        return None, []
+    return cv["text"], (analyse_gaps(cv["text"], jd["text"]) if jd else [])
+
+
+@app.get("/api/cv-review")
+def cv_review(store=Depends(get_store)):
+    cv_text, gaps = _context(store)
+    if not cv_text:
+        return {"has_cv": False}
+    review = analyse_cv(cv_text)
+    return {"has_cv": True, "review": review, "plan": training.build_plan(review, gaps, store.profile())}
+
+
+@app.get("/api/training")
+def training_overview(store=Depends(get_store)):
+    cv_text, gaps = _context(store)
+    review = analyse_cv(cv_text) if cv_text else None
+    claims = extract_claims(cv_text) if cv_text else []
+    prof = store.profile()
+    plan = training.build_plan(review, gaps, prof) if review else []
+    metric = next((c.text for c in claims if c.type == "metric"), claims[0].text if claims else "")
+    return {
+        "has_cv": bool(cv_text), "lessons": training.lessons(), "quizzes": training.preset("lessons")["quizzes"], "plan": plan,
+        "progress": store.training_progress(),
+        "rewrite_bullets": review["bullets_to_fix"] if review else [],
+        "claim": claims[0].text if claims else "", "metric": metric,
+    }
+
+
+@app.post("/api/training/check")
+def training_check(body: CheckIn):
+    if body.kind == "rewrite":
+        if not body.text.strip():
+            raise HTTPException(400, "Write your rewrite first")
+        return training.check_rewrite(body.original, body.text)
+    if body.kind == "build":
+        try:
+            return training.check_build(body.lesson_id, body.values)
+        except KeyError:
+            raise HTTPException(404, "Unknown lesson")
+    raise HTTPException(400, "Unknown check kind")
+
+
+@app.post("/api/training/complete")
+def training_complete(body: CompleteIn, store=Depends(get_store)):
+    if body.lesson_id not in training.lesson_map():
+        raise HTTPException(404, "Unknown lesson")
+    store.record_training(body.lesson_id, body.score)
+    return {"progress": store.training_progress()}
 
 
 @app.get("/api/profile")

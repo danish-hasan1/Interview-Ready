@@ -56,3 +56,34 @@ def test_store_roundtrip_export_delete():
     assert s.export_all()["answers"]
     s.delete_all()
     assert not s.session_summaries()
+
+
+def test_cv_analysis_flags_weak_lines_and_plans():
+    from interview_ready.cv_analysis import analyse_cv, review_bullet
+    from interview_ready.training import build_plan
+    cv = """Summary
+Experienced recruiter.
+Experience
+- Responsible for helping the team with various hiring processes and stuff
+- Worked on improving things for different departments across the company
+- Reduced time to hire from 62 to 38 days across 120 roles
+"""
+    r = analyse_cv(cv)
+    assert r["findings"] and r["categories"]["impact"] < 100
+    assert any("Weak phrasing" in i for b in r["bullets_to_fix"] for i in b["issues"])
+    assert review_bullet("Reduced time to hire from 62 to 38 days across 120 roles").score >= 80
+    plan = build_plan(r, analyse_gaps(CV, JD), {"dims": {"structure": 3}})
+    ids = [p["lesson_id"] for p in plan]
+    assert "structure" in ids and "own_it" in ids
+    assert len(ids) == len(set(ids))
+
+
+def test_training_checks():
+    from interview_ready.training import check_build, check_rewrite
+    out = check_rewrite("Worked on hiring", "Cut time to hire from 62 to 38 days across 120 roles by redesigning screening")
+    assert out["improved"] and out["after"] > out["before"]
+    res = check_build("structure", {"headline": "I cut time to hire by 39%.", "p1": "sourcing", "p2": "screening", "p3": "training",
+                                      "example": "At my last company this saved 11 days", "result": "38 days across 120 roles"})
+    assert res["score"] > 0 and all(f["ok"] for f in res["fields"])
+    bad = check_build("structure", {"headline": ""})
+    assert not bad["pass"]

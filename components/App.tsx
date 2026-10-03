@@ -4,12 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Analysis, Profile, Workspace } from "@/lib/types";
 import Brief, { type DrillRequest } from "./Brief";
+import CvReview from "./CvReview";
 import Practice from "./Practice";
 import Privacy from "./Privacy";
 import Record from "./Record";
+import Train from "./Train";
 
 const NAV = [
   { id: "board", label: "Defence board" },
+  { id: "review", label: "CV review" },
+  { id: "train", label: "Train" },
   { id: "practice", label: "Practice" },
   { id: "record", label: "Record" },
   { id: "data", label: "Your data" },
@@ -21,6 +25,7 @@ export default function App() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [notes, setNotes] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [lessonId, setLessonId] = useState<string | null>(null);
   const [drill, setDrill] = useState<(DrillRequest & { id: number }) | null>(null);
 
   const refresh = useCallback(() => { api<Profile>("/profile").then(setProfile).catch(() => {}); }, []);
@@ -37,14 +42,14 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-6 px-5 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 pt-3">
           <span className="flex items-center gap-2.5">
             <span className="grid h-7 w-7 place-items-center rounded-md bg-ink font-display text-[11px] font-extrabold text-white">IR</span>
             <span className="font-display text-base font-extrabold tracking-tight">Interview Ready</span>
           </span>
-          <nav aria-label="Main" className="-mb-3 flex gap-1 overflow-x-auto">
+          <nav aria-label="Main" className="flex gap-1 overflow-x-auto">
             {NAV.map((n) => (
-              <button key={n.id} onClick={() => setPage(n.id)} aria-current={page === n.id ? "page" : undefined}
+              <button key={n.id} onClick={() => { setLessonId(null); setPage(n.id); }} aria-current={page === n.id ? "page" : undefined}
                 className={`relative whitespace-nowrap px-3 pb-3 pt-1 text-sm font-semibold transition-colors ${page === n.id ? "text-ink" : "text-muted hover:text-ink"}`}>
                 {n.label}
                 {page === n.id && <motion.span layoutId="tab" className="absolute inset-x-2 bottom-0 h-[3px] rounded-full bg-blue" transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
@@ -61,7 +66,9 @@ export default function App() {
       <AnimatePresence mode="wait" initial={false}>
         {page !== "practice" && <motion.main key={page} className="mx-auto w-full max-w-5xl px-5 py-8 pb-24"
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-          {page === "board" && <Brief analysis={analysis} setAnalysis={setAnalysis} notes={notes} setNotes={setNotes} profile={profile} onDrill={startDrill} />}
+          {page === "board" && <Brief analysis={analysis} setAnalysis={setAnalysis} notes={notes} setNotes={setNotes} profile={profile} onDrill={startDrill} goTo={(p) => { setLessonId(null); setPage(p); }} />}
+          {page === "review" && <CvReview refreshKey={analysis} goBrief={() => setPage("board")} onTrain={(id) => { setLessonId(id ?? null); setPage("train"); }} />}
+          {page === "train" && <Train initialLesson={lessonId} goBrief={() => setPage("board")} goPractice={() => setPage("practice")} onChanged={refresh} />}
           {page === "record" && <Record profile={profile} goPractice={() => setPage("practice")} />}
           {page === "data" && <Privacy onDeleted={() => { setAnalysis(null); setProfile(null); setDrill(null); refresh(); }} />}
         </motion.main>}

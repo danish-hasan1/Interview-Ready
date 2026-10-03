@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "weak_phrases": ["responsible for", "responsibilities included", "duties included", "helped", "assisted", "involved in", "worked on", "worked with", "participated in", "supported the", "tasked with", "in charge of", "exposure to", "familiar with", "various", "etc", "and so on", "handled"],
+  "extra_action_verbs": ["accelerated", "architected", "boosted", "championed", "consolidated", "cut", "doubled", "eliminated", "expanded", "generated", "initiated", "negotiated", "overhauled", "pioneered", "rebuilt", "redesigned", "restructured", "secured", "tripled", "won", "turned around", "mentored", "coached", "revamped", "standardised", "standardized", "onboarded", "sourced"],
+  "result_words": ["result", "resulting", "reduc", "increas", "improv", "saved", "saving", "grew", "growth", "deliver", "achiev", "led to", "cut", "boost", "doubl", "tripl", "generat", "exceed", "outperform", "from", "to "],
+  "sections": {
+    "summary": ["summary", "profile", "about me", "objective"],
+    "experience": ["experience", "employment", "work history", "career"],
+    "education": ["education", "qualification", "degree", "academic"],
+    "skills": ["skills", "competenc", "expertise", "technologies", "tools"]
+  },
+  "max_bullet_words": 28,
+  "min_bullet_words": 8,
+  "weights": {"impact": 0.28, "ownership": 0.2, "outcomes": 0.2, "business": 0.14, "concision": 0.1, "structure": 0.08}
+}

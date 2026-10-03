@@ -11,15 +11,15 @@ export type DrillRequest = { focus?: string; weakest?: boolean };
 const TYPE = { metric: "Number", action: "Action", title: "Title" } as const;
 type Row = { ref: string; kind: "claim" | "gap"; label: string; claim?: Claim; index?: number; gapStatus?: string; coverage?: number; evidence?: string[] };
 
-export default function Brief({ analysis, setAnalysis, notes, setNotes, profile, onDrill }: {
+export default function Brief({ analysis, setAnalysis, notes, setNotes, profile, onDrill, goTo }: {
   analysis: Analysis | null; setAnalysis: (a: Analysis) => void; notes: string; setNotes: (n: string) => void;
-  profile: Profile | null; onDrill: (r: DrillRequest) => void;
+  profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train") => void;
 }) {
   const [replacing, setReplacing] = useState(false);
   if (!analysis || replacing)
     return <Upload notes={notes} setNotes={setNotes} onCancel={analysis ? () => setReplacing(false) : undefined}
       onDone={(a) => { setAnalysis(a); setReplacing(false); }} />;
-  return <Board analysis={analysis} setAnalysis={setAnalysis} profile={profile} onDrill={onDrill} onReplace={() => setReplacing(true)} />;
+  return <Board analysis={analysis} setAnalysis={setAnalysis} profile={profile} onDrill={onDrill} goTo={goTo} onReplace={() => setReplacing(true)} />;
 }
 
 function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes: (n: string) => void; onDone: (a: Analysis) => void; onCancel?: () => void }) {
@@ -75,8 +75,8 @@ function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes
   );
 }
 
-function Board({ analysis, setAnalysis, profile, onDrill, onReplace }: {
-  analysis: Analysis; setAnalysis: (a: Analysis) => void; profile: Profile | null; onDrill: (r: DrillRequest) => void; onReplace: () => void;
+function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
+  analysis: Analysis; setAnalysis: (a: Analysis) => void; profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train") => void; onReplace: () => void;
 }) {
   const [filter, setFilter] = useState<"all" | Defence>("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -106,6 +106,12 @@ function Board({ analysis, setAnalysis, profile, onDrill, onReplace }: {
         Every claim and unproven requirement, and how well you have defended it so far. {analysis.cv_name && <span className="label">Source: {analysis.cv_name}</span>}
       </PageHeader>
 
+      {!profile?.sessions.length && (
+        <div className="sheet mb-4 flex flex-wrap items-center justify-between gap-3 border-l-[3px] border-l-blue p-4">
+          <p className="text-sm"><b>Start before you practise.</b> Review how your CV reads, then work through a short training plan built from it.</p>
+          <div className="flex gap-2"><Btn variant="ghost" onClick={() => goTo("review")}>CV review</Btn><Btn onClick={() => goTo("train")}>Training plan</Btn></div>
+        </div>
+      )}
       <div className="sheet mb-6 p-5">
         <div className="flex h-3 overflow-hidden rounded-full bg-line" role="img" aria-label={`${count("solid")} solid, ${count("shaky")} shaky, ${count("untested")} untested`}>
           {([["solid", "bg-solid"], ["shaky", "bg-shaky"], ["untested", "bg-transparent"]] as const).map(([s, c]) => (

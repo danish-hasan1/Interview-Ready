@@ -11,9 +11,10 @@ CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TE
 CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
 CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS training (id INTEGER PRIMARY KEY, lesson_id TEXT, score REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
-TABLES = ["documents", "claims", "sessions", "answers"]
+TABLES = ["documents", "claims", "sessions", "answers", "training"]
 
 
 def _now():
@@ -48,8 +49,24 @@ def summarise(answers: list, sessions: list) -> dict:
             "weaknesses": sorted(dims.items(), key=lambda x: x[1])[:3]}
 
 
+def summarise_training(rows: list) -> dict:
+    out: dict = {}
+    for r in rows:
+        o = out.setdefault(r["lesson_id"], {"attempts": 0, "best": 0, "last": 0})
+        o["attempts"] += 1
+        o["last"] = r["score"]
+        o["best"] = max(o["best"], r["score"])
+    return out
+
+
 class BaseStore:
     """Aggregations shared by every backend. Subclasses supply raw rows."""
+
+    def list_training(self) -> list:  # [{lesson_id, score}]
+        raise NotImplementedError
+
+    def training_progress(self) -> dict:
+        return summarise_training(self.list_training())
 
     def list_answers(self) -> list:  # [{session_id, dims(dict), total, created}]
         raise NotImplementedError
@@ -119,6 +136,12 @@ class Store(BaseStore):
     def list_sessions(self):
         return [dict(r) for r in self.conn.execute("SELECT id, created, role FROM sessions")]
 
+    def record_training(self, lesson_id, score):
+        self._q("INSERT INTO training(lesson_id,score,created) VALUES(?,?,?)", (lesson_id, score, _now()))
+
+    def list_training(self):
+        return [{"lesson_id": r["lesson_id"], "score": r["score"]} for r in self.conn.execute("SELECT * FROM training ORDER BY id")]
+
     # cache interface for CachedProvider
     def get(self, key):
         r = self.conn.execute("SELECT value FROM llm_cache WHERE key=?", (key,)).fetchone()
@@ -186,9 +209,15 @@ class SupabaseStore(BaseStore):
     def list_sessions(self):
         return self._req("GET", "sessions", params={"select": "id,created,role"})
 
+    def record_training(self, lesson_id, score):
+        self._req("POST", "training", json={"lesson_id": lesson_id, "score": score})
+
+    def list_training(self):
+        return self._req("GET", "training", params={"select": "lesson_id,score", "order": "id"})
+
     def export_all(self):
         return {t: self._req("GET", t) for t in TABLES}
 
     def delete_all(self):
-        for t in ["answers", "sessions", "claims", "documents"]:
+        for t in ["training", "answers", "sessions", "claims", "documents"]:
             self._req("DELETE", t, params={"id": "gt.0"})
