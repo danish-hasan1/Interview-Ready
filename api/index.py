@@ -1,4 +1,5 @@
 """FastAPI backend. On Vercel this file is the Python function; locally: uvicorn api.index:app."""
+import hmac
 import os
 import sys
 from dataclasses import asdict
@@ -6,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
@@ -26,6 +27,21 @@ from interview_ready import training  # noqa: E402
 MAX_UPLOAD = 4 * 1024 * 1024
 HOSTED = bool(os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
 app = FastAPI(title="Interview Ready", docs_url=None, redoc_url=None)
+
+_OPEN_PATHS = {"/api/health", "/api/access"}
+
+
+@app.middleware("http")
+async def access_gate(request, call_next):
+    """Optional shared-secret gate. With APP_ACCESS_KEY set, every API call needs the matching x-access-key header.
+    Protects data, delete, export and AI quota when the app is reachable on a public URL without a login."""
+    required = os.environ.get("APP_ACCESS_KEY", "")
+    if required and request.url.path.startswith("/api") and request.url.path not in _OPEN_PATHS and request.method != "OPTIONS":
+        given = request.headers.get("x-access-key", "")
+        if not hmac.compare_digest(given.encode(), required.encode()):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Access key required"}, status_code=401)
+    return await call_next(request)
 _store = None
 
 
@@ -97,6 +113,13 @@ def _to_claims(items) -> list:
         c.questions = build_questions(c)
         out.append(c)
     return out
+
+
+@app.get("/api/access")
+def access(request: Request):
+    required = os.environ.get("APP_ACCESS_KEY", "")
+    ok = (not required) or hmac.compare_digest(request.headers.get("x-access-key", "").encode(), required.encode())
+    return {"required": bool(required), "ok": ok}
 
 
 @app.get("/api/health")

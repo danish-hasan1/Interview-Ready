@@ -11,6 +11,7 @@ import Prepare, { type PrepTab } from "./Prepare";
 import Privacy from "./Privacy";
 import Record from "./Record";
 import Targets from "./Targets";
+import Unlock from "./Unlock";
 import Today from "./Today";
 
 const NAV = [
@@ -32,6 +33,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [active, setActive] = useState<Target | null>(null);
   const [rev, setRev] = useState(0);
+  const [locked, setLocked] = useState(false);
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [drill, setDrill] = useState<(DrillRequest & { id: number }) | null>(null);
 
@@ -44,6 +46,13 @@ export default function App() {
     }).catch(() => {});
   }, []);
   const changed = useCallback(() => { reloadWorkspace(); loadActive(); refresh(); }, [reloadWorkspace, loadActive, refresh]);
+
+  useEffect(() => {
+    const lock = () => setLocked(true);
+    window.addEventListener("ir-locked", lock);
+    api<{ required: boolean; ok: boolean }>("/access").then((a) => { if (a.required && !a.ok) setLocked(true); }).catch(() => {});
+    return () => window.removeEventListener("ir-locked", lock);
+  }, []);
 
   useEffect(() => { refresh(); reloadWorkspace(); loadActive(); }, [refresh, reloadWorkspace, loadActive]);
 
@@ -59,6 +68,8 @@ export default function App() {
     else if (spec.startsWith("lesson:")) { setLessonId(spec.slice(7)); setPrep("train"); setPage("prepare"); }
     else setPage(spec as Page);
   };
+
+  if (locked) return <Unlock onUnlocked={() => { setLocked(false); changed(); }} />;
 
   const label = active ? (active.kind === "general" ? "General preparation" : [active.role || "Interview", active.company].filter(Boolean).join(" · ")) : "";
 

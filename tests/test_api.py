@@ -248,3 +248,20 @@ def test_off_topic_answer_is_capped_by_rules_in_the_flow():
             "For example, in 2023 I hiked 12 peaks and saved $200 on equipment. The result was a great summer and better fitness.")
     r = c.post("/api/interview/answer", json={"session_id": start["session_id"], "state": start["state"], "answer": hike}).json()
     assert r["score"]["total"] <= 3.5 and "does not answer" in r["score"]["fixes"][0]
+
+
+def test_access_key_gate(monkeypatch):
+    c = client()
+    assert c.get("/api/targets").status_code == 200  # no key configured: open (local mode)
+    monkeypatch.setenv("APP_ACCESS_KEY", "s3cret-key-123456")
+    assert c.get("/api/health").status_code == 200  # health stays open
+    assert c.get("/api/access").json() == {"required": True, "ok": False}
+    for path in ("/api/export", "/api/targets", "/api/ai", "/api/profile"):
+        assert c.get(path).status_code == 401
+    assert c.delete("/api/data").status_code == 401
+    assert c.post("/api/ai/cv-review").status_code == 401
+    bad = {"x-access-key": "nope"}
+    assert c.get("/api/export", headers=bad).status_code == 401
+    good = {"x-access-key": "s3cret-key-123456"}
+    assert c.get("/api/access", headers=good).json() == {"required": True, "ok": True}
+    assert c.get("/api/export", headers=good).status_code == 200

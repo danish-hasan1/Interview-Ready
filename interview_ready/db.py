@@ -265,7 +265,7 @@ class SupabaseStore(BaseStore):
     server-side only (never NEXT_PUBLIC). Tables have RLS on with no policies, so the public
     anon key cannot read them. Keep the deployment itself private (Vercel Deployment Protection)."""
 
-    def __init__(self, url=None, service_key=None):
+    def __init__(self, url=None, service_key=None, transport=None):
         import httpx
 
         url = (url or os.environ["SUPABASE_URL"]).rstrip("/")
@@ -275,6 +275,7 @@ class SupabaseStore(BaseStore):
             headers={"apikey": key, "Authorization": f"Bearer {key}",
                      "Content-Type": "application/json", "Prefer": "return=representation"},
             timeout=20,
+            transport=transport,
         )
 
     def _req(self, method, table, **kw):
