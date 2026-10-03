@@ -13,13 +13,15 @@ CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TE
 CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS ai_usage (day TEXT PRIMARY KEY, count INTEGER DEFAULT 0);
+CREATE TABLE IF NOT EXISTS targets (id INTEGER PRIMARY KEY, kind TEXT DEFAULT 'interview', company TEXT, role TEXT, stage TEXT, interview_date TEXT, jd_text TEXT, interviewer_notes TEXT, research TEXT, created TEXT, updated TEXT);
+CREATE TABLE IF NOT EXISTS prepared_answers (id INTEGER PRIMARY KEY, target_id INTEGER, question_id TEXT, text TEXT, score REAL, updated TEXT, UNIQUE(target_id, question_id));
 CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY, theme TEXT, title TEXT, fields TEXT, composed TEXT, score REAL, created TEXT, updated TEXT);
 CREATE TABLE IF NOT EXISTS debriefs (id INTEGER PRIMARY KEY, company TEXT, role TEXT, interview_date TEXT, outcome TEXT, notes TEXT, questions TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY, kind TEXT, question TEXT, text TEXT, approved INTEGER DEFAULT 0, created TEXT);
 CREATE TABLE IF NOT EXISTS training (id INTEGER PRIMARY KEY, lesson_id TEXT, score REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
-TABLES = ["documents", "claims", "sessions", "answers", "training", "library", "stories", "debriefs"]
+TABLES = ["documents", "claims", "sessions", "answers", "training", "library", "stories", "debriefs", "targets", "prepared_answers"]
 
 
 def _now():
@@ -151,6 +153,10 @@ class Store(BaseStore):
     def list_documents(self, kind):
         return [dict(r) for r in self.conn.execute("SELECT id, name, text, created FROM documents WHERE kind=? ORDER BY id", (kind,))]
 
+    def answers_for(self, ref, limit=20):
+        rows = self.conn.execute("SELECT id, session_id, question, kind, answer, dims, total, created FROM answers WHERE ref=? ORDER BY id DESC LIMIT ?", (ref, limit))
+        return [{**dict(r), "dims": json.loads(r["dims"])} for r in rows]
+
     def get_setting(self, key, default=None):
         r = self.conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
         return json.loads(r["value"]) if r else default
@@ -164,6 +170,29 @@ class Store(BaseStore):
 
     def incr_usage(self, day):
         self._q("INSERT INTO ai_usage(day,count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET count=count+1", (day,))
+
+    def list_targets(self):
+        return [{**dict(r), "research": json.loads(r["research"] or "{}")} for r in self.conn.execute("SELECT * FROM targets ORDER BY id")]
+
+    def save_target(self, target_id, kind, company, role, stage, interview_date, jd_text, interviewer_notes, research):
+        if target_id:
+            self._q("UPDATE targets SET company=?, role=?, stage=?, interview_date=?, jd_text=?, interviewer_notes=?, research=?, updated=? WHERE id=?",
+                    (company, role, stage, interview_date, jd_text, interviewer_notes, json.dumps(research), _now(), target_id))
+            return target_id
+        return self._q("INSERT INTO targets(kind,company,role,stage,interview_date,jd_text,interviewer_notes,research,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                       (kind, company, role, stage, interview_date, jd_text, interviewer_notes, json.dumps(research), _now(), _now())).lastrowid
+
+    def delete_target(self, target_id):
+        self._q("DELETE FROM prepared_answers WHERE target_id=?", (target_id,))
+        self._q("DELETE FROM targets WHERE id=? AND kind != 'general'", (target_id,))
+
+    def list_prepared(self, target_id):
+        return [dict(r) for r in self.conn.execute("SELECT question_id, text, score, updated FROM prepared_answers WHERE target_id=?", (target_id,))]
+
+    def save_prepared(self, target_id, question_id, text, score):
+        self._q("INSERT INTO prepared_answers(target_id,question_id,text,score,updated) VALUES(?,?,?,?,?) "
+                "ON CONFLICT(target_id,question_id) DO UPDATE SET text=excluded.text, score=excluded.score, updated=excluded.updated",
+                (target_id, question_id, text, score, _now()))
 
     def list_stories(self):
         return [{**dict(r), "fields": json.loads(r["fields"] or "{}")} for r in self.conn.execute("SELECT * FROM stories ORDER BY id")]
@@ -290,6 +319,10 @@ class SupabaseStore(BaseStore):
     def list_documents(self, kind):
         return self._req("GET", "documents", params={"kind": f"eq.{kind}", "select": "id,name,text,created", "order": "id"})
 
+    def answers_for(self, ref, limit=20):
+        return self._req("GET", "answers", params={"ref": f"eq.{ref}", "select": "id,session_id,question,kind,answer,dims,total,created",
+                                                    "order": "id.desc", "limit": limit})
+
     def get_setting(self, key, default=None):
         rows = self._req("GET", "settings", params={"key": f"eq.{key}"})
         return rows[0]["value"] if rows else default
@@ -313,6 +346,29 @@ class SupabaseStore(BaseStore):
 
     def put(self, key, value):
         self.http.post("/llm_cache", json={"key": key, "value": value},
+                       headers={"Prefer": "resolution=merge-duplicates,return=minimal"}).raise_for_status()
+
+    def list_targets(self):
+        return self._req("GET", "targets", params={"order": "id"})
+
+    def save_target(self, target_id, kind, company, role, stage, interview_date, jd_text, interviewer_notes, research):
+        body = {"company": company, "role": role, "stage": stage, "interview_date": interview_date or None, "jd_text": jd_text,
+                "interviewer_notes": interviewer_notes, "research": research}
+        if target_id:
+            self._req("PATCH", "targets", params={"id": f"eq.{target_id}"}, json={**body, "updated": _now()})
+            return target_id
+        return self._req("POST", "targets", json={**body, "kind": kind})[0]["id"]
+
+    def delete_target(self, target_id):
+        self._req("DELETE", "prepared_answers", params={"target_id": f"eq.{target_id}"})
+        self._req("DELETE", "targets", params={"id": f"eq.{target_id}", "kind": "neq.general"})
+
+    def list_prepared(self, target_id):
+        return self._req("GET", "prepared_answers", params={"target_id": f"eq.{target_id}", "select": "question_id,text,score,updated"})
+
+    def save_prepared(self, target_id, question_id, text, score):
+        self.http.post("/prepared_answers", params={"on_conflict": "target_id,question_id"},
+                       json={"target_id": target_id, "question_id": question_id, "text": text, "score": score, "updated": _now()},
                        headers={"Prefer": "resolution=merge-duplicates,return=minimal"}).raise_for_status()
 
     def list_stories(self):
@@ -367,7 +423,7 @@ class SupabaseStore(BaseStore):
         return {t: self._req("GET", t) for t in TABLES}
 
     def delete_all(self):
-        for t in ["debriefs", "stories", "library", "training", "answers", "sessions", "claims", "documents"]:
+        for t in ["prepared_answers", "targets", "debriefs", "stories", "library", "training", "answers", "sessions", "claims", "documents"]:
             self._req("DELETE", t, params={"id": "gt.0"})
         self._req("DELETE", "settings", params={"key": "neq."})
         self._req("DELETE", "llm_cache", params={"key": "neq."})

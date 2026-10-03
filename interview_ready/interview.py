@@ -81,6 +81,8 @@ def step(state: dict, answer: str, max_questions: int = 10, max_followups: int =
     max_followups = state.get("max_followups", max_followups)
     score = score_answer(answer, cur.question, cur.ref, cur.kind)
     key = follow_up_for(answer, score) if cur.kind != "followup" and used < max_followups else None
+    if cur.kind == "core" and key not in (None, "too_long", "unstructured"):
+        key = None  # "give me a number" makes no sense for "why are you leaving"
     if key:
         phrases = {**preset("pressure"), **state.get("phrases", {})}
         nxt, used = Turn(phrases[key], "followup", cur.ref), used + 1
@@ -113,3 +115,24 @@ def notes_plan(notes: str) -> dict:
 def persona_plan(persona_id: str) -> dict:
     p = next((x for x in preset("personas")["personas"] if x["id"] == persona_id), None) or next(x for x in preset("personas")["personas"] if x["id"] == "standard")
     return {"id": p["id"], "max_followups": p["max_followups"], "extras": p["extras"], "phrases": p["phrases"]}
+
+
+STAGE_MIX = {"screen": (5, 1, 0), "hiring_manager": (3, 3, 2), "panel": (3, 2, 1), "executive": (3, 2, 1), "technical": (2, 4, 1), "general": (3, 3, 1)}
+
+
+def build_stage_queue(claims: list, gap_items: list, core_items: list, stage: str, extras: list | None = None) -> list:
+    """Session mix for an interview stage: tell-me-about-yourself first, then core, claim and gap questions in ratio."""
+    n_core, n_claim, n_gap = STAGE_MIX.get(stage, STAGE_MIX["general"])
+    core = [Turn(c["question"], "core", c["ref"]) for c in core_items]
+    first = [c for c in core if c.ref == "core:tell_me"]
+    core = first + [c for c in core if c.ref != "core:tell_me"]
+    claim_t = [Turn(c.questions[0], "claim", c.text) for c in claims if c.questions][:n_claim]
+    gap_t = [Turn(g["question"], "gap", g["ref"]) for g in (extras or []) + gap_items][: n_gap + len(extras or [])]
+    pools = [core[:n_core], claim_t, gap_t]
+    queue = list(pools[0][:1])
+    pools[0] = pools[0][1:]
+    while any(pools):
+        for pool in pools:
+            if pool:
+                queue.append(pool.pop(0))
+    return queue

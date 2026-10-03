@@ -85,3 +85,24 @@ export type AiStatus = { configured: boolean; enabled: boolean; consent: boolean
 export type AiRewrite = { original: string; rewrite: string; why: string; before: number; after: number; needs_figure: boolean };
 export type AiReview = { seniority: string; summary: string; risks: string[]; rewrites: AiRewrite[]; hard_questions: string[]; missing_evidence: string[]; redacted: Record<string, number>; dropped: number };
 export type CvVersion = { id: number; name: string; created: string; score: number };
+
+export type Target = {
+  id: number; kind: "general" | "interview"; company: string; role: string; stage: string; interview_date: string;
+  jd_text: string; interviewer_notes: string; research: Record<string, string>; days_left: number | null;
+  readiness?: { score: number; label: string };
+};
+export type TargetsData = {
+  targets: Target[]; active_id: number; stages: Record<string, { label: string; core: string[]; persona: string }>;
+  research_fields: { key: string; label: string; hint: string }[];
+};
+export type Criterion = { id: string; label: string; weight: number; value: number; detail: string; page: string; action: string };
+export type PlanTask = { id: string; title: string; minutes: number; page: string; priority: number; detail: string; day: number | null; due: string | null; done: boolean };
+export type TodayData = {
+  target: Target; has_cv: boolean;
+  readiness: { score: number; label: string; cap_note: string; criteria: Criterion[]; blockers: Criterion[]; days_left: number | null; due_count: number };
+  plan: { tasks: PlanTask[]; horizon: number; triage: boolean; later_count: number };
+};
+export type CoreQ = { id: string; label: string; question: string; words: number[]; guidance: string[]; prepared: { text: string; score: number } | null };
+export type CoreData = { target: Target; stage_label: string; questions: CoreQ[] };
+export type CoreCheck = { score: number; checks: { ok: boolean; weight: number; msg: string }[]; ready: boolean; words: number; fixes: string[] };
+export type Attempt = { id: number; question: string; kind: string; answer: string; dims: Record<string, number>; total: number; created: string };

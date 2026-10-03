@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "stages": {
+    "general": {
+      "label": "General preparation",
+      "core": [
+        "tell_me",
+        "strengths",
+        "weakness",
+        "achievement",
+        "why_leaving",
+        "salary",
+        "five_years",
+        "questions_for_us"
+      ],
+      "persona": "standard"
+    },
+    "screen": {
+      "label": "HR or recruiter screen",
+      "core": [
+        "tell_me",
+        "why_company",
+        "why_role",
+        "why_leaving",
+        "salary",
+        "availability",
+        "strengths"
+      ],
+      "persona": "friendly"
+    },
+    "hiring_manager": {
+      "label": "Hiring manager",
+      "core": [
+        "tell_me",
+        "why_hire",
+        "strengths",
+        "weakness",
+        "achievement",
+        "questions_for_us",
+        "why_company"
+      ],
+      "persona": "standard"
+    },
+    "panel": {
+      "label": "Panel",
+      "core": [
+        "tell_me",
+        "why_company",
+        "strengths",
+        "weakness",
+        "questions_for_us",
+        "five_years"
+      ],
+      "persona": "standard"
+    },
+    "executive": {
+      "label": "Executive or CEO",
+      "core": [
+        "tell_me",
+        "why_company",
+        "why_hire",
+        "five_years",
+        "achievement",
+        "questions_for_us"
+      ],
+      "persona": "ceo"
+    },
+    "technical": {
+      "label": "Technical or case",
+      "core": [
+        "tell_me",
+        "achievement",
+        "weakness",
+        "questions_for_us"
+      ],
+      "persona": "technical"
+    }
+  },
+  "questions": [
+    {
+      "id": "tell_me",
+      "label": "Tell me about yourself",
+      "question": "Tell me about yourself.",
+      "words": [
+        60,
+        130
+      ],
+      "guidance": [
+        "Present: who you are and what you do now, with scope.",
+        "Past: one or two moves that built your strength, with a number.",
+        "Future: why this role is the logical next step.",
+        "Aim for about 90 seconds. Do not recite your CV."
+      ]
+    },
+    {
+      "id": "why_company",
+      "label": "Why this company",
+      "question": "Why do you want to work here?",
+      "words": [
+        45,
+        120
+      ],
+      "needs_company": true,
+      "guidance": [
+        "Name the company and one specific thing about it: a product, market, strategy or recent move.",
+        "Connect that to something you have done.",
+        "End on what you would contribute, not what you would get."
+      ]
+    },
+    {
+      "id": "why_role",
+      "label": "Why this role",
+      "question": "Why this role?",
+      "words": [
+        40,
+        110
+      ],
+      "guidance": [
+        "Name the role's core challenge in your own words.",
+        "Show you have solved a version of it, with a number.",
+        "Say what draws you to the next level of scope."
+      ]
+    },
+    {
+      "id": "why_leaving",
+      "label": "Why are you leaving or looking",
+      "question": "Why are you leaving your current role?",
+      "words": [
+        30,
+        95
+      ],
+      "guidance": [
+        "Never criticise your employer or boss.",
+        "Frame it as what you are moving towards: scope, challenge, impact.",
+        "Keep it short and calm, then pivot to this role."
+      ]
+    },
+    {
+      "id": "strengths",
+      "label": "Your strengths",
+      "question": "What are your greatest strengths?",
+      "words": [
+        50,
+        130
+      ],
+      "guidance": [
+        "Pick two or three strengths this role needs.",
+        "Give one piece of evidence with a number for each.",
+        "Do not list ten adjectives."
+      ]
+    },
+    {
+      "id": "weakness",
+      "label": "Your weakness",
+      "question": "What is your biggest weakness?",
+      "words": [
+        40,
+        110
+      ],
+      "guidance": [
+        "Choose a real, non-fatal weakness.",
+        "Show what you did about it and the result.",
+        "Avoid clichés such as perfectionist or workaholic."
+      ]
+    },
+    {
+      "id": "achievement",
+      "label": "Biggest achievement",
+      "question": "What is your proudest professional achievement?",
+      "words": [
+        60,
+        150
+      ],
+      "guidance": [
+        "Context, your action, the result with a number, and the business impact.",
+        "Use I for your decisions and we for delivery."
+      ]
+    },
+    {
+      "id": "why_hire",
+      "label": "Why should we hire you",
+      "question": "Why should we hire you?",
+      "words": [
+        50,
+        130
+      ],
+      "guidance": [
+        "Restate the role's top need, then match it with evidence.",
+        "Two proof points with numbers.",
+        "Finish with what changes in their first year."
+      ]
+    },
+    {
+      "id": "five_years",
+      "label": "Where in five years",
+      "question": "Where do you see yourself in five years?",
+      "words": [
+        30,
+        100
+      ],
+      "guidance": [
+        "Describe the scope you want to own, not a title.",
+        "Tie it to the growth of the business you are joining.",
+        "Never imply this job is a stepping stone."
+      ]
+    },
+    {
+      "id": "salary",
+      "label": "Salary expectations",
+      "question": "What are your salary expectations?",
+      "words": [
+        15,
+        75
+      ],
+      "guidance": [
+        "Give a range, with your target near the bottom third of it.",
+        "Anchor to scope and results, not to your current pay.",
+        "Say you are open to discussing the full package."
+      ]
+    },
+    {
+      "id": "availability",
+      "label": "Notice period and availability",
+      "question": "When could you start?",
+      "words": [
+        8,
+        45
+      ],
+      "guidance": [
+        "State your notice period as a number.",
+        "Say whether it is flexible and why."
+      ]
+    },
+    {
+      "id": "questions_for_us",
+      "label": "Your questions for them",
+      "question": "Do you have any questions for us?",
+      "words": [
+        25,
+        160
+      ],
+      "min_questions": 3,
+      "guidance": [
+        "Prepare at least three real questions.",
+        "Ask about success in 90 days, the biggest challenge, and how decisions get made.",
+        "Never ask only about pay or leave."
+      ]
+    }
+  ]
+}

@@ -16,8 +16,8 @@ from interview_ready.cv_analysis import analyse_cv
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
 from interview_ready.gaps import analyse_gaps, gap_items  # noqa: E402
 from interview_ready.brief import build_brief
-from interview_ready.interview import build_queue, notes_plan, persona_plan, start_state, step
-from interview_ready import speech, stories as story_bank
+from interview_ready.interview import Turn, build_queue, build_stage_queue, notes_plan, persona_plan, start_state, step
+from interview_ready import core as core_bank, plan as plan_svc, readiness as readiness_svc, speech, stories as story_bank, targets as target_svc
 from interview_ready.spaced import due_items
 from interview_ready.llm_provider import LLMUnavailable, get_provider  # noqa: E402
 from interview_ready.parsing import extract_text  # noqa: E402
@@ -76,6 +76,7 @@ class StartIn(BaseModel):
     focus: str = ""
     max_questions: int = 6
     persona: str = "standard"
+    mode: str = "default"  # default | core | stage
 
 
 class AnswerIn(BaseModel):
@@ -132,7 +133,8 @@ async def analyze(
         except ValueError as e:
             raise HTTPException(400, str(e))
     if jd_body:
-        store.add_document("jd", "jd", jd_body)
+        _set_jd(store, jd_body)
+    jd_body = jd_body or _jd(store)
     claims = extract_claims(cv_text)
     store.replace_claims(None, claims)
     gaps = analyse_gaps(cv_text, jd_body) if jd_body else []
@@ -158,14 +160,31 @@ def claim_questions(body: ClaimsIn):
 
 @app.post("/api/interview/start")
 def interview_start(body: StartIn, store=Depends(get_store)):
-    npl = notes_plan(body.notes) if not body.focus else {"extras": [], "max_followups": 1}
-    per = persona_plan(body.persona)
+    tgt = target_svc.active(store)
+    stage = "general" if tgt["kind"] == "general" else tgt["stage"]
+    persona_id = core_bank.stage_persona(stage) if body.persona == "auto" else body.persona
+    npl = notes_plan(body.notes or tgt.get("interviewer_notes", "")) if not body.focus else {"extras": [], "max_followups": 1}
+    per = persona_plan(persona_id)
     plan = {"extras": (per["extras"] + npl["extras"])[:3], "max_followups": max(npl["max_followups"], per["max_followups"])}
-    items = plan["extras"] + [g.model_dump() for g in body.gap_items]
-    queue = build_queue(_to_claims(body.claims), items, min(max(body.max_questions, 1), 10), body.focus)
+    claims = _to_claims(body.claims)
+    if body.mode in ("core", "stage"):
+        core_items = []
+        for qid in core_bank.stage_ids(stage):
+            q = core_bank.question(qid)
+            text = f"Why do you want to work at {tgt['company']}?" if qid == "why_company" and tgt.get("company") else q["question"]
+            core_items.append({"question": text, "ref": f"core:{qid}"})
+        if body.mode == "core":
+            queue = [Turn(c["question"], "core", c["ref"]) for c in core_items]
+        else:
+            queue = build_stage_queue(claims, [g.model_dump() for g in body.gap_items], core_items, stage, plan["extras"])
+    else:
+        items = plan["extras"] + [g.model_dump() for g in body.gap_items]
+        queue = build_queue(claims, items, min(max(body.max_questions, 1), 10), body.focus)
     if not queue:
         raise HTTPException(400, "No questions could be built from this CV")
-    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue), plan["max_followups"], per["phrases"], per["id"])}
+    queue = queue[:12]
+    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue), plan["max_followups"], per["phrases"], per["id"]),
+            "persona": per["id"], "stage": stage}
 
 
 @app.post("/api/interview/answer")
@@ -174,6 +193,11 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
         raise HTTPException(400, "Interview already finished")
     cur = body.state["current"]
     score, new_state = step(body.state, body.answer)
+    if cur["kind"] == "core" and str(cur.get("ref", "")).startswith("core:"):
+        tgt = target_svc.active(store)
+        res = core_bank.check_core(cur["ref"].split(":", 1)[1], body.answer, tgt.get("company", ""), tgt.get("role", ""))
+        score.total = round(0.5 * score.total + 0.5 * res["score"], 1)
+        score.fixes = (res["fixes"] + score.fixes)[:3]
     coach = _coach(store, cur["question"], body.answer, score, cur.get("ref", ""), cur["kind"])
     if coach and coach.get("answers_question") is False and score.total > 4.0:
         score.total = 4.0  # the AI read says it dodged the question, so the rules cannot give it a pass
@@ -198,8 +222,28 @@ class CompleteIn(BaseModel):
     score: float
 
 
+def _jd(store) -> str:
+    return (target_svc.active(store).get("jd_text") or "").strip()
+
+
+def _latest_jd(store):
+    jd = _jd(store)
+    return {"text": jd} if jd else None
+
+
+def _set_jd(store, text: str):
+    """A JD pasted on the board belongs to the active target. From General it starts a new interview target."""
+    a = target_svc.active(store)
+    if a["kind"] == "general":
+        tid = store.save_target(None, "interview", "", "Target role", "hiring_manager", "", text, "", {})
+        store.set_setting("active_target", tid)
+    else:
+        store.save_target(a["id"], a["kind"], a["company"], a["role"], a["stage"], a.get("interview_date") or "", text,
+                          a.get("interviewer_notes", ""), a.get("research") or {})
+
+
 def _context(store):
-    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    cv, jd = store.latest_document("cv"), _latest_jd(store)
     if not cv:
         return None, []
     return cv["text"], (analyse_gaps(cv["text"], jd["text"]) if jd else [])
@@ -337,7 +381,7 @@ def ai_preview(store=Depends(get_store)):
 
 @app.post("/api/ai/cv-review")
 def ai_cv_review_ep(store=Depends(get_store)):
-    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    cv, jd = store.latest_document("cv"), _latest_jd(store)
     if not cv:
         raise HTTPException(400, "Upload a CV first")
     return _ai_guard(lambda: ai_layer.ai_cv_review(store, cv["text"], jd["text"] if jd else ""))
@@ -345,7 +389,7 @@ def ai_cv_review_ep(store=Depends(get_store)):
 
 @app.post("/api/ai/questions")
 def ai_questions_ep(store=Depends(get_store)):
-    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    cv, jd = store.latest_document("cv"), _latest_jd(store)
     if not cv:
         raise HTTPException(400, "Upload a CV first")
     return {"questions": _ai_guard(lambda: ai_layer.ai_questions(store, cv["text"], jd["text"] if jd else ""))}
@@ -354,6 +398,148 @@ def ai_questions_ep(store=Depends(get_store)):
 @app.post("/api/ai/story-tighten")
 def ai_story_ep(body: StoryTightenIn, store=Depends(get_store)):
     return _ai_guard(lambda: ai_layer.ai_tighten_story(store, body.theme, body.fields))
+
+
+class TargetIn(BaseModel):
+    company: str = ""
+    role: str = ""
+    stage: str = "hiring_manager"
+    interview_date: str = ""
+    jd_text: str = ""
+    interviewer_notes: str = ""
+    research: dict = {}
+
+
+class ToggleIn(BaseModel):
+    task_id: str
+    done: bool
+
+
+class CoreCheckIn(BaseModel):
+    question_id: str
+    text: str
+
+
+def _target_out(store, t, with_readiness=False):
+    out = {k: t[k] for k in ("id", "kind", "company", "role", "stage", "interview_date", "jd_text", "interviewer_notes", "research")}
+    out["interview_date"] = str(t["interview_date"])[:10] if t.get("interview_date") else ""
+    out["days_left"] = target_svc.days_left(t)
+    if with_readiness:
+        r = readiness_svc.compute(store, t)
+        out["readiness"] = {"score": r["score"], "label": r["label"]}
+    return out
+
+
+@app.get("/api/targets/active")
+def targets_active(store=Depends(get_store)):
+    return _target_out(store, target_svc.active(store))
+
+
+@app.get("/api/targets")
+def targets_list(store=Depends(get_store)):
+    ts = target_svc.ensure_general(store)["targets"]
+    act = target_svc.active(store)
+    return {"targets": [_target_out(store, t, True) for t in ts], "active_id": act["id"], "stages": core_bank.bank()["stages"],
+            "research_fields": target_svc.research_fields()}
+
+
+@app.post("/api/targets")
+def targets_create(body: TargetIn, store=Depends(get_store)):
+    target_svc.ensure_general(store)
+    if body.stage not in core_bank.bank()["stages"] or body.stage == "general":
+        raise HTTPException(400, "Unknown interview stage")
+    tid = store.save_target(None, "interview", body.company.strip(), body.role.strip(), body.stage, body.interview_date, body.jd_text.strip(),
+                            body.interviewer_notes.strip(), body.research)
+    store.set_setting("active_target", tid)
+    return {"id": tid}
+
+
+@app.put("/api/targets/{target_id}")
+def targets_update(target_id: int, body: TargetIn, store=Depends(get_store)):
+    t = next((x for x in store.list_targets() if x["id"] == target_id), None)
+    if not t:
+        raise HTTPException(404, "Unknown target")
+    stage = "general" if t["kind"] == "general" else body.stage
+    if t["kind"] != "general" and stage not in core_bank.bank()["stages"]:
+        raise HTTPException(400, "Unknown interview stage")
+    store.save_target(target_id, t["kind"], body.company.strip(), body.role.strip(), stage, body.interview_date, body.jd_text.strip(),
+                      body.interviewer_notes.strip(), body.research)
+    return {"ok": True}
+
+
+@app.post("/api/targets/{target_id}/activate")
+def targets_activate(target_id: int, store=Depends(get_store)):
+    if not any(x["id"] == target_id for x in store.list_targets()):
+        raise HTTPException(404, "Unknown target")
+    store.set_setting("active_target", target_id)
+    return {"ok": True}
+
+
+@app.delete("/api/targets/{target_id}")
+def targets_delete(target_id: int, store=Depends(get_store)):
+    t = next((x for x in store.list_targets() if x["id"] == target_id), None)
+    if t and t["kind"] == "general":
+        raise HTTPException(400, "The General target cannot be deleted")
+    store.delete_target(target_id)
+    if store.get_setting("active_target") == target_id:
+        store.set_setting("active_target", target_svc.active(store)["id"])
+    return {"ok": True}
+
+
+@app.get("/api/today")
+def today(store=Depends(get_store)):
+    t = target_svc.active(store)
+    r = readiness_svc.compute(store, t)
+    done = set(store.get_setting(f"plan_done:{t['id']}", []) or [])
+    tasks = plan_svc.build_tasks(r, "")
+    sched = plan_svc.schedule(tasks, r["days_left"], done)
+    ctx = r.pop("context")
+    return {"target": _target_out(store, t), "readiness": r, "plan": sched, "has_cv": ctx["has_cv"]}
+
+
+@app.post("/api/plan/toggle")
+def plan_toggle(body: ToggleIn, store=Depends(get_store)):
+    t = target_svc.active(store)
+    key = f"plan_done:{t['id']}"
+    done = set(store.get_setting(key, []) or [])
+    (done.add if body.done else done.discard)(body.task_id)
+    store.set_setting(key, sorted(done))
+    return {"done": sorted(done)}
+
+
+@app.get("/api/core")
+def core_list(store=Depends(get_store)):
+    t = target_svc.active(store)
+    stage = "general" if t["kind"] == "general" else t["stage"]
+    prepared = {p["question_id"]: p for p in store.list_prepared(t["id"])}
+    qs = []
+    for qid in core_bank.stage_ids(stage):
+        q = core_bank.question(qid)
+        question = q["question"]
+        if qid == "why_company" and t.get("company"):
+            question = f"Why do you want to work at {t['company']}?"
+        qs.append({**q, "question": question, "prepared": prepared.get(qid)})
+    return {"target": _target_out(store, t), "stage_label": core_bank.bank()["stages"][stage]["label"], "questions": qs}
+
+
+@app.post("/api/core/check")
+def core_check(body: CoreCheckIn, store=Depends(get_store)):
+    t = target_svc.active(store)
+    try:
+        return core_bank.check_core(body.question_id, body.text, t.get("company", ""), t.get("role", ""))
+    except KeyError:
+        raise HTTPException(404, "Unknown core question")
+
+
+@app.put("/api/core/answer")
+def core_save(body: CoreCheckIn, store=Depends(get_store)):
+    t = target_svc.active(store)
+    try:
+        res = core_bank.check_core(body.question_id, body.text, t.get("company", ""), t.get("role", ""))
+    except KeyError:
+        raise HTTPException(404, "Unknown core question")
+    store.save_prepared(t["id"], body.question_id, body.text.strip(), res["score"])
+    return res
 
 
 @app.get("/api/llm")
@@ -386,8 +572,13 @@ def library_delete(item_id: int, store=Depends(get_store)):
 @app.get("/api/profile")
 def profile(store=Depends(get_store)):
     p = store.profile()
-    p["due"] = due_items(p["refs"])
+    p["due"] = due_items({k: v for k, v in p["refs"].items() if not k.startswith("core:")})
     return p
+
+
+@app.get("/api/history")
+def history(ref: str, store=Depends(get_store)):
+    return {"attempts": store.answers_for(ref)}
 
 
 @app.get("/api/personas")
@@ -411,7 +602,7 @@ def pressure_drill(store=Depends(get_store)):
 
 @app.get("/api/interview-brief")
 def interview_brief(store=Depends(get_store)):
-    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    cv, jd = store.latest_document("cv"), _latest_jd(store)
     if not cv:
         return {"has_cv": False}
     claims = extract_claims(cv["text"])
@@ -527,7 +718,7 @@ def workspace(store=Depends(get_store)):
     cv = store.latest_document("cv")
     if not cv:
         return {"has_cv": False}
-    jd = store.latest_document("jd")
+    jd = _latest_jd(store)
     claims = extract_claims(cv["text"])
     saved = store.get_ownerships()
     for c in claims:

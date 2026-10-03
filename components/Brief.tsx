@@ -1,12 +1,12 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, post } from "@/lib/api";
 import { defence, type Defence } from "@/lib/status";
-import { OWNERSHIP, type Analysis, type Claim, type Profile } from "@/lib/types";
+import { OWNERSHIP, type Analysis, type Attempt, type Claim, type Profile } from "@/lib/types";
 import { Btn, PageHeader, Stamp, itemV, listV } from "./ui";
 
-export type DrillRequest = { focus?: string; weakest?: boolean; refs?: string[]; custom?: { question: string; ref: string }[] };
+export type DrillRequest = { focus?: string; weakest?: boolean; refs?: string[]; custom?: { question: string; ref: string }[]; mode?: "stage" | "core" };
 
 const TYPE = { metric: "Number", action: "Action", title: "Title" } as const;
 type Row = { ref: string; kind: "claim" | "gap"; label: string; claim?: Claim; index?: number; gapStatus?: string; coverage?: number; evidence?: string[] };
@@ -187,6 +187,7 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
                           {r.evidence?.length ? r.evidence.map((e) => <p key={e}><span className="label mr-2">CV</span>{e}</p>) : <p>Nothing on your CV matches this requirement.</p>}
                         </div>
                       )}
+                      {d.attempts > 0 && <Attempts refText={r.ref} />}
                       <Btn onClick={() => onDrill({ focus: r.ref })}>Drill this {r.kind === "claim" ? "claim" : "requirement"}</Btn>
                     </div>
                   </motion.div>
@@ -204,5 +205,32 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
         </details>
       )}
     </section>
+  );
+}
+
+
+function Attempts({ refText }: { refText: string }) {
+  const [a, setA] = useState<Attempt[] | null>(null);
+  useEffect(() => { api<{ attempts: Attempt[] }>(`/history?ref=${encodeURIComponent(refText)}`).then((r) => setA(r.attempts)).catch(() => setA([])); }, [refText]);
+  if (!a || a.length === 0) return null;
+  const chrono = [...a].reverse();
+  return (
+    <div>
+      <p className="label mb-2">Your attempts · {chrono.map((x) => x.total).join(" → ")}</p>
+      <ul className="space-y-2">
+        {a.slice(0, 5).map((x) => (
+          <li key={x.id}>
+            <details className="rounded-md border border-line bg-card">
+              <summary className="flex cursor-pointer items-center gap-3 p-2.5 text-sm">
+                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded font-display text-sm font-bold text-white ${x.total >= 7 ? "bg-solid" : x.total >= 4 ? "bg-shaky" : "bg-pen"}`}>{x.total}</span>
+                <span className="min-w-0 flex-1 truncate text-muted">{x.question}</span>
+                <span className="label shrink-0">{new Date(x.created).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+              </summary>
+              <p className="border-t border-line p-3 text-sm">{x.answer}</p>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

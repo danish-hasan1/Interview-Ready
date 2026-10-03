@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "fields": [
+    {
+      "key": "what",
+      "label": "What they do",
+      "hint": "Products, customers, markets, how they make money."
+    },
+    {
+      "key": "strategy",
+      "label": "Strategy and recent news",
+      "hint": "A recent launch, funding, leadership change or market move. Read their latest announcement."
+    },
+    {
+      "key": "people",
+      "label": "The interviewers",
+      "hint": "Names, roles, background, what they care about. Check their public profiles."
+    },
+    {
+      "key": "competitors",
+      "label": "Competitors and position",
+      "hint": "Two competitors and how this company differs."
+    },
+    {
+      "key": "why",
+      "label": "My honest reason for this company",
+      "hint": "One specific thing that draws you, in your words."
+    },
+    {
+      "key": "ask",
+      "label": "My three questions for them",
+      "hint": "Real questions, one per line."
+    }
+  ]
+}

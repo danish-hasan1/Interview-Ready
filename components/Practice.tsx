@@ -12,8 +12,8 @@ type Item = { q: string; kind: string; ref: string; a: string; score: Score; coa
 const TARGET = 150;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-export default function Practice({ analysis, notes, profile, request, onConsumed, goBrief, onFinished }: {
-  analysis: Analysis | null; notes: string; profile: Profile | null; request: (DrillRequest & { id: number }) | null; onConsumed: () => void; goBrief: () => void; onFinished: () => void;
+export default function Practice({ analysis, notes, profile, request, onConsumed, goBrief, onFinished, stageLabel }: {
+  analysis: Analysis | null; notes: string; profile: Profile | null; request: (DrillRequest & { id: number }) | null; onConsumed: () => void; goBrief: () => void; onFinished: () => void; stageLabel?: boolean;
 }) {
   const [sid, setSid] = useState<number | null>(null);
   const [state, setState] = useState<InterviewState | null>(null);
@@ -22,7 +22,8 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [secs, setSecs] = useState(0);
-  const [persona, setPersona] = useState("standard");
+  const [persona, setPersona] = useState("auto");
+  const [usedPersona, setUsedPersona] = useState("standard");
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [stories, setStories] = useState<StoriesData | null>(null);
   const [voice, setVoice] = useState(false);
@@ -50,9 +51,10 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
       const refs = req.refs ? new Set(req.refs) : null;
       const claims = req.custom ? [] : refs ? analysis.claims.filter((c) => refs.has(c.text)) : req.weakest || !req.focus ? order : analysis.claims;
       const gap_items = req.custom ?? (refs ? analysis.gap_items.filter((g) => refs.has(g.ref)) : analysis.gap_items);
-      const r = await post<{ session_id: number; state: InterviewState }>("/interview/start", {
-        claims, gap_items, notes, focus: req.focus ?? "", persona, max_questions: req.refs || req.custom ? 10 : 6,
+      const r = await post<{ session_id: number; state: InterviewState; persona: string }>("/interview/start", {
+        claims: req.mode ? order : claims, gap_items, notes, focus: req.focus ?? "", persona, mode: req.mode ?? "default", max_questions: req.refs || req.custom ? 10 : 6,
       });
+      setUsedPersona(r.persona);
       api<StoriesData>("/stories").then(setStories).catch(() => {});
       setSid(r.session_id); setState(r.state); setLog([]); setAnswer(""); setVmetrics(null);
     } catch (e) { setErr((e as Error).message); }
@@ -100,16 +102,28 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
         <div className="sheet mb-4 p-4">
           <p className="label mb-2">Interviewer</p>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => setPersona("auto")} aria-pressed={persona === "auto"} title="Pick the interviewer that matches the interview stage"
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${persona === "auto" ? "border-ink bg-ink text-white" : "border-line bg-card hover:border-ink"}`}>Match the interview</button>
             {personas.map((p) => (
               <button key={p.id} onClick={() => setPersona(p.id)} aria-pressed={persona === p.id} title={p.blurb}
                 className={`rounded-full border px-3 py-1 text-sm transition-colors ${persona === p.id ? "border-ink bg-ink text-white" : "border-line bg-card hover:border-ink"}`}>{p.label}</button>
             ))}
           </div>
-          <p className="mt-2 text-sm text-muted">{personas.find((p) => p.id === persona)?.blurb}</p>
+          <p className="mt-2 text-sm text-muted">{persona === "auto" ? "General: standard. A specific interview picks its own: friendly for HR screens, CEO-style for executives, technical for technical rounds." : personas.find((p) => p.id === persona)?.blurb}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
+          <button onClick={() => start({ mode: "stage" })} className="sheet p-6 text-left transition-colors hover:border-ink md:col-span-2">
+            <p className="label !text-blue">Recommended {stageLabel ? "for your interview" : ""}</p>
+            <p className="mt-1 font-display text-xl font-bold">Match this interview</p>
+            <p className="mt-1 text-sm text-muted">A session shaped like the real stage: tell-me-about-yourself first, then core questions, your claims and the role gaps in the right mix, with a matching interviewer.</p>
+          </button>
+          <button onClick={() => start({ mode: "core" })} className="sheet p-6 text-left transition-colors hover:border-ink">
+            <p className="label">Basics</p>
+            <p className="mt-1 font-display text-xl font-bold">Core questions only</p>
+            <p className="mt-1 text-sm text-muted">Tell me about yourself, why this company, strengths, weakness, salary and your questions for them.</p>
+          </button>
           <button onClick={() => start({ weakest: true })} className="sheet p-6 text-left transition-colors hover:border-ink">
-            <p className="label">Recommended</p>
+            <p className="label">Claims</p>
             <p className="mt-1 font-display text-xl font-bold">Weakest first</p>
             <p className="mt-1 text-sm text-muted">Shaky and untested claims first, mixed with the role requirements your CV does not prove. Six questions.</p>
           </button>
@@ -136,7 +150,7 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
 
   return (
     <section>
-      <PageHeader title={finished ? "Session complete" : `Practice · ${personas.find((p) => p.id === persona)?.label ?? ""} interviewer`}
+      <PageHeader title={finished ? "Session complete" : `Practice · ${personas.find((p) => p.id === usedPersona)?.label ?? ""} interviewer`}
         action={<Btn variant="ghost" onClick={() => { setState(null); setLog([]); }}>End session</Btn>}>
         {finished ? "Scores are saved and your board is updated." : "Answer as you would in the room: headline first, then points, an example, the result."}
       </PageHeader>
