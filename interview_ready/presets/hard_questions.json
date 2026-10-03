@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "metric": [
+    "You say \"{claim}\". What exactly does that number mean?",
+    "How was it measured, and who signed off on the measurement?",
+    "What was the baseline before you started?",
+    "What would have happened without your involvement?"
+  ],
+  "title": [
+    "What was the scope of the role behind \"{claim}\" - team size, budget, decisions you owned?",
+    "Who did you report to and what were you accountable for in numbers?"
+  ],
+  "action": [
+    "You say \"{claim}\". What exactly did YOU do, step by step?",
+    "What was the business problem this solved?"
+  ],
+  "always": [
+    "What was the business impact of this, in revenue, cost or margin terms?"
+  ],
+  "ownership": {
+    "Owned": ["What trade-offs did you decide, and what would you do differently?"],
+    "Led": ["Which decisions were yours versus your team's, and how did you handle disagreement?"],
+    "Contributed": ["What was your specific part versus the team's? What would be missing if you had not been there?"],
+    "Supported": ["What exactly did you do versus the people you supported? Be specific."],
+    "Exposure": ["What did you actually learn from this exposure, and could you do it solo today?"]
+  },
+  "gap": [
+    "The role needs \"{req}\". Where have you done this, with what result?",
+    "Your CV does not clearly evidence \"{req}\". Convince me you can do it."
+  ]
+}

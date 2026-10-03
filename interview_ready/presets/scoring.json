@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "max_words": 180,
+  "ideal_words": [40, 150],
+  "fillers": ["um", "uh", "like", "you know", "basically", "actually", "sort of", "kind of", "i mean", "literally", "stuff", "things", "and so on", "etcetera", "i guess", "maybe", "probably", "hopefully"],
+  "structure": {
+    "headline_max_words": 28,
+    "points": ["first", "second", "third", "firstly", "secondly", "thirdly", "three things", "two things", "three reasons", "1.", "2.", "3.", "one,", "two,"],
+    "example": ["for example", "for instance", "for one", "specifically", "in my role", "when i ", "at my", "in 20"],
+    "result": ["result", "resulted", "led to", "achieved", "reduced", "increased", "improved", "delivered", "saved", "grew", "outcome", "which meant"],
+    "context": ["context", "situation", "background", "the problem", "challenge"],
+    "action": ["i built", "i led", "i designed", "i decided", "i implemented", "i launched", "i negotiated", "i created", "i owned", "i introduced", "i drove", "i set up", "i changed"]
+  },
+  "impact": ["revenue", "cost", "margin", "profit", "p&l", "saving", "savings", "roi", "budget", "headcount", "retention", "attrition", "time to hire", "time-to-hire", "conversion", "productivity", "growth", "efficiency", "pipeline", "quality of hire", "offer acceptance"],
+  "team_words": ["we", "our", "us", "the team", "my team"],
+  "owner_words": ["i", "my", "me", "i'd", "i've", "i'm"],
+  "action_verbs": ["led", "built", "designed", "launched", "managed", "owned", "created", "delivered", "implemented", "reduced", "increased", "improved", "negotiated", "developed", "introduced", "established", "drove", "scaled", "hired", "recruited", "streamlined", "automated", "partnered", "headed", "spearheaded", "transformed", "grew", "saved", "set up", "ran", "directed", "owned"],
+  "title_words": ["manager", "head", "director", "lead", "specialist", "engineer", "analyst", "consultant", "partner", "vp", "vice president", "chief", "officer", "recruiter", "executive", "coordinator", "associate"],
+  "stopwords": ["the", "and", "for", "with", "that", "this", "from", "have", "has", "are", "will", "you", "your", "our", "their", "such", "including", "ability", "strong", "experience", "years", "work", "working", "role", "team", "skills", "knowledge", "good", "plus", "must", "required", "preferred", "across", "within", "into", "through", "about", "other", "also", "well", "using", "use", "based", "able", "etc", "who", "what", "which", "can", "all", "any", "more", "one", "new", "key", "demonstrated", "proven", "track", "record", "excellent", "responsible", "responsibilities", "requirements", "qualifications", "candidate", "ideal", "looking", "seeking", "join", "company", "business"]
+}

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "unstructured": "I'm not following. Give me your answer in one headline sentence first, then three points.",
+  "no_numbers": "Give me a number. How much, how many, by when?",
+  "no_ownership": "What exactly did YOU do, not the team?",
+  "no_impact": "That's operational. Answer strategically - what was the business impact?",
+  "too_long": "Let me stop you there. Can you land that in 30 seconds?",
+  "vague": "Be specific. Give me one concrete example."
+}

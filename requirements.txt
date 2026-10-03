@@ -1,0 +1,6 @@
+# Vercel Python function (api/index.py). Keep this lean: no streamlit/pytest here.
+fastapi
+python-multipart
+httpx
+pypdf
+python-docx
