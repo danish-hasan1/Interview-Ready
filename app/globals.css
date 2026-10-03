@@ -46,3 +46,10 @@ body { color: var(--ink); font-family: var(--font-sans); background: var(--paper
 
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+@media print {
+  .no-print { display: none !important; }
+  body, html { background: #fff !important; }
+  .sheet { break-inside: avoid; box-shadow: none; }
+  main { padding: 0 !important; max-width: none !important; }
+}

@@ -1,10 +1,10 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { post } from "@/lib/api";
+import { api, post } from "@/lib/api";
 import { DIM, DIM_ORDER } from "@/lib/dims";
 import { defence, SOLID_AT } from "@/lib/status";
-import type { Analysis, Coach, InterviewState, Profile, Score } from "@/lib/types";
+import type { Analysis, Coach, InterviewState, Persona, Profile, Score, StoriesData } from "@/lib/types";
 import type { DrillRequest } from "./Brief";
 import { Btn, CountUp, PageHeader, RatingBar, Stamp, ease } from "./ui";
 
@@ -22,10 +22,20 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [secs, setSecs] = useState(0);
+  const [persona, setPersona] = useState("standard");
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [stories, setStories] = useState<StoriesData | null>(null);
+  const [voice, setVoice] = useState(false);
+  const [vmetrics, setVmetrics] = useState<VoiceResult | null>(null);
   const lastReq = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const qKey = state?.current?.question;
+
+  useEffect(() => {
+    api<{ personas: Persona[] }>("/personas").then((r) => setPersonas(r.personas)).catch(() => {});
+    api<{ available: boolean }>("/voice").then((r) => setVoice(r.available)).catch(() => {});
+  }, []);
 
   const order = useMemo(() => {
     if (!analysis) return [];
@@ -37,10 +47,14 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
     if (!analysis) return;
     setErr("");
     try {
+      const refs = req.refs ? new Set(req.refs) : null;
+      const claims = req.custom ? [] : refs ? analysis.claims.filter((c) => refs.has(c.text)) : req.weakest || !req.focus ? order : analysis.claims;
+      const gap_items = req.custom ?? (refs ? analysis.gap_items.filter((g) => refs.has(g.ref)) : analysis.gap_items);
       const r = await post<{ session_id: number; state: InterviewState }>("/interview/start", {
-        claims: req.weakest || !req.focus ? order : analysis.claims, gap_items: analysis.gap_items, notes, focus: req.focus ?? "",
+        claims, gap_items, notes, focus: req.focus ?? "", persona, max_questions: req.refs || req.custom ? 10 : 6,
       });
-      setSid(r.session_id); setState(r.state); setLog([]); setAnswer("");
+      api<StoriesData>("/stories").then(setStories).catch(() => {});
+      setSid(r.session_id); setState(r.state); setLog([]); setAnswer(""); setVmetrics(null);
     } catch (e) { setErr((e as Error).message); }
   }
 
@@ -82,7 +96,17 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
   if (!state)
     return (
       <>
-        <PageHeader title="Practice">Choose what to be tested on. Each answer is scored and the claim it tests gets a defence stamp on your board.</PageHeader>
+        <PageHeader title="Practice">Choose who interviews you and what you are tested on. Each answer is scored and the claim it tests gets a defence stamp on your board.</PageHeader>
+        <div className="sheet mb-4 p-4">
+          <p className="label mb-2">Interviewer</p>
+          <div className="flex flex-wrap gap-2">
+            {personas.map((p) => (
+              <button key={p.id} onClick={() => setPersona(p.id)} aria-pressed={persona === p.id} title={p.blurb}
+                className={`rounded-full border px-3 py-1 text-sm transition-colors ${persona === p.id ? "border-ink bg-ink text-white" : "border-line bg-card hover:border-ink"}`}>{p.label}</button>
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-muted">{personas.find((p) => p.id === persona)?.blurb}</p>
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <button onClick={() => start({ weakest: true })} className="sheet p-6 text-left transition-colors hover:border-ink">
             <p className="label">Recommended</p>
@@ -112,7 +136,7 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
 
   return (
     <section>
-      <PageHeader title={finished ? "Session complete" : "Practice"}
+      <PageHeader title={finished ? "Session complete" : `Practice · ${personas.find((p) => p.id === persona)?.label ?? ""} interviewer`}
         action={<Btn variant="ghost" onClick={() => { setState(null); setLog([]); }}>End session</Btn>}>
         {finished ? "Scores are saved and your board is updated." : "Answer as you would in the room: headline first, then points, an example, the result."}
       </PageHeader>
@@ -133,12 +157,14 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
             <motion.div key={cur.question} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease }} className="space-y-3">
               {cur.ref && !pressing && <p className="label">Testing · <span className="normal-case tracking-normal text-ink">{cur.ref}</span></p>}
               <Interviewer text={cur.question} pressing={pressing} big />
+              {!pressing && <StoryHint stories={stories} question={cur.question} />}
               <div className="sheet p-3">
                 <textarea ref={boxRef} aria-label="Your answer" value={answer} onChange={(e) => setAnswer(e.target.value)}
                   onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit(); }}
                   className="h-40 w-full resize-y rounded-md bg-paper/60 p-3 text-[15px] outline-none focus:ring-2 focus:ring-blue/30" placeholder="Your answer…" />
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <Btn disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Scoring…" : "Submit answer"}</Btn>
+                  {voice && <Recorder onResult={(r) => { setAnswer((a) => (a ? a + " " : "") + r.text); setVmetrics(r); }} />}
                   <span className="label hidden sm:inline">⌘ + Enter</span>
                   <div className="ml-auto flex items-center gap-3">
                     <div className="h-1.5 w-28 overflow-hidden rounded-full bg-line">
@@ -151,6 +177,12 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
                   </div>
                 </div>
               </div>
+              {vmetrics && (
+                <div className="mt-3 rounded-md bg-paper/70 p-3 text-sm">
+                  <p className="label mb-1">Delivery · {vmetrics.metrics.wpm} words a minute · {vmetrics.metrics.pause_count} long pauses · fillers {Object.values(vmetrics.metrics.fillers).reduce((a, b) => a + b, 0)}</p>
+                  <ul className="space-y-0.5">{vmetrics.coaching.map((c) => <li key={c}>– {c}</li>)}</ul>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -228,5 +260,60 @@ function Assessment({ score, refText, state, coach, question }: { score: Score; 
         </div>
       )}
     </motion.div>
+  );
+}
+
+
+type VoiceResult = { text: string; metrics: { wpm: number; pause_count: number; longest_pause: number; fillers: Record<string, number> }; coaching: string[] };
+
+function StoryHint({ stories, question }: { stories: StoriesData | null; question: string }) {
+  const [open, setOpen] = useState(false);
+  if (!stories) return null;
+  const q = question.toLowerCase();
+  let theme = "", hits = 0;
+  for (const t of stories.themes.themes) { const n = t.cues.filter((c) => q.includes(c)).length; if (n > hits) { theme = t.id; hits = n; } }
+  if (!theme) return null;
+  const label = stories.themes.themes.find((t) => t.id === theme)!.label;
+  const best = stories.stories.filter((s) => s.theme === theme).sort((a, b) => b.score - a.score)[0];
+  if (!best) return <p className="label">Story bank: no <span className="text-ink">{label.toLowerCase()}</span> story yet. Add one in Stories to reuse it here.</p>;
+  return (
+    <div className="rounded-md border-l-[3px] border-blue bg-blue/5 p-3 text-sm">
+      <button onClick={() => setOpen(!open)} className="label !text-blue underline">From your story bank · {label} · {best.title || "untitled"} · {best.score}/10 {open ? "(hide)" : "(show)"}</button>
+      {open && <p className="mt-2">{best.composed}</p>}
+    </div>
+  );
+}
+
+/** Local voice: records in the browser, transcribes on this machine, never stores audio. */
+function Recorder({ onResult }: { onResult: (r: VoiceResult) => void }) {
+  const [rec, setRec] = useState<MediaRecorder | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function toggle() {
+    setErr("");
+    if (rec) { rec.stop(); setRec(null); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = (e) => chunks.push(e.data);
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setBusy(true);
+        try {
+          const fd = new FormData();
+          fd.append("audio", new Blob(chunks, { type: mr.mimeType }), "answer.webm");
+          onResult(await api<VoiceResult>("/voice/transcribe", { method: "POST", body: fd }));
+        } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+      };
+      mr.start(); setRec(mr);
+    } catch { setErr("Microphone not available. Check browser permission."); }
+  }
+  return (
+    <span className="flex items-center gap-2">
+      <Btn variant="ghost" onClick={toggle} disabled={busy}>{rec ? "Stop recording" : busy ? "Transcribing…" : "Answer by voice"}</Btn>
+      {err && <span role="alert" className="text-sm text-pen">{err}</span>}
+    </span>
   );
 }

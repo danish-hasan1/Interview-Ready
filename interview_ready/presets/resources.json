@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "note": "Titles only, no links. Search the title or ask your library. Check current editions.",
+  "items": [
+    {
+      "title": "The Pyramid Principle",
+      "author": "Barbara Minto",
+      "format": "book",
+      "level": "intermediate",
+      "skills": [
+        "structure",
+        "length"
+      ],
+      "why": "The origin of answer-first structure: lead with the conclusion, then group supporting points."
+    },
+    {
+      "title": "Financial Intelligence",
+      "author": "Karen Berman and Joe Knight",
+      "format": "book",
+      "level": "beginner",
+      "skills": [
+        "business_impact"
+      ],
+      "why": "Reads a P&L, balance sheet and cash flow in plain language. Fixes the vocabulary gap for non-finance leaders."
+    },
+    {
+      "title": "Never Split the Difference",
+      "author": "Chris Voss",
+      "format": "book",
+      "level": "intermediate",
+      "skills": [
+        "pressure",
+        "salary"
+      ],
+      "why": "Staying calm and structured under pressure, plus practical negotiation for salary conversations."
+    },
+    {
+      "title": "Getting to Yes",
+      "author": "Roger Fisher and William Ury",
+      "format": "book",
+      "level": "beginner",
+      "skills": [
+        "salary"
+      ],
+      "why": "The standard text on interest-based negotiation. Useful for offer and package discussions."
+    },
+    {
+      "title": "Who: The A Method for Hiring",
+      "author": "Geoff Smart and Randy Street",
+      "format": "book",
+      "level": "intermediate",
+      "skills": [
+        "business_impact",
+        "specificity"
+      ],
+      "why": "Hiring from the business owner's side. Helps you speak about quality of hire and scorecards credibly."
+    },
+    {
+      "title": "Work Rules!",
+      "author": "Laszlo Bock",
+      "format": "book",
+      "level": "intermediate",
+      "skills": [
+        "business_impact",
+        "specificity"
+      ],
+      "why": "Data-driven people practices. Source of concrete, quotable hiring and retention metrics."
+    },
+    {
+      "title": "Made to Stick",
+      "author": "Chip Heath and Dan Heath",
+      "format": "book",
+      "level": "beginner",
+      "skills": [
+        "specificity",
+        "structure"
+      ],
+      "why": "Why concrete, specific stories are remembered. Good for building your story bank."
+    },
+    {
+      "title": "Talk Like TED",
+      "author": "Carmine Gallo",
+      "format": "book",
+      "level": "beginner",
+      "skills": [
+        "structure",
+        "filler"
+      ],
+      "why": "Practical delivery and storytelling habits: fewer filler words, clearer arcs."
+    },
+    {
+      "title": "Thinking, Fast and Slow",
+      "author": "Daniel Kahneman",
+      "format": "book",
+      "level": "advanced",
+      "skills": [
+        "business_impact"
+      ],
+      "why": "Understand bias in hiring decisions. Gives you language for structured interviewing and quality of hire."
+    },
+    {
+      "title": "Harvard Business Review: articles on talent strategy and workforce planning",
+      "author": "HBR",
+      "format": "articles",
+      "level": "intermediate",
+      "skills": [
+        "business_impact"
+      ],
+      "why": "Search hbr.org for workforce planning and talent strategy to bring current commercial framing to answers."
+    }
+  ]
+}

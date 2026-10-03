@@ -93,3 +93,46 @@ def check_build(lesson_id: str, values: dict) -> dict:
     score = score_answer(composed)
     return {"fields": notes, "composed": composed, "score": score.total, "dims": score.dims, "fixes": score.fixes,
             "framework": score.framework, "pass": ok and score.total >= 6}
+
+
+PRESSURE_ROUNDS = ["no_numbers", "no_ownership", "unstructured", "no_impact", "too_long", "vague"]
+
+
+def check_pressure(key: str, text: str) -> dict:
+    """Rule check for one standalone pressure drill response."""
+    s = preset("scoring")
+    words = _WORDS(text)
+    n = len(words)
+    low = text.lower()
+    lw = [w.lower().strip(".,") for w in words]
+    i, we = sum(lw.count(w) for w in ("i", "my", "me")), sum(lw.count(w) for w in ("we", "our", "us"))
+    if key == "no_numbers":
+        ok, msg = bool(_NUM.search(text)), "Lead with the figure."
+    elif key == "no_ownership":
+        ok, msg = i > 0 and i >= we, "Say what YOU decided and did. Use I."
+    elif key == "unstructured":
+        ok, msg = 0 < n <= 25 and bool(_NUM.search(text)), "One headline sentence, 25 words or fewer, with a number."
+    elif key == "no_impact":
+        ok, msg = any(t in low for t in s["impact"]) and bool(_NUM.search(text)), "Name revenue, cost, margin or time, with a figure."
+    elif key == "too_long":
+        ok, msg = 0 < n <= 75, "Land it in 75 words or fewer (about 30 seconds)."
+    else:  # vague
+        ok, msg = bool(_NUM.search(text)) and any(m in low for m in s["structure"]["example"]), "Give one concrete example with a figure."
+    return {"pass": ok, "words": n, "message": "Good. Specific and short." if ok else msg}
+
+
+def recommend_resources(dims: dict, plan: list, limit: int = 4) -> list:
+    """Curated reading tied to weak dimensions and plan lessons."""
+    res = preset("resources")["items"]
+    need: dict = {}
+    for d, v in (dims or {}).items():
+        if v < 7:
+            need[d] = need.get(d, 0) + (7 - v)
+    lm = lesson_map()
+    for p in plan:
+        sk = lm[p["lesson_id"]]["skill"]
+        need[sk] = need.get(sk, 0) + 1.5
+        if p["lesson_id"] in ("pressure", "salary"):
+            need[p["lesson_id"]] = need.get(p["lesson_id"], 0) + 2
+    scored = sorted(((sum(need.get(s, 0) for s in r["skills"]), r) for r in res), key=lambda x: -x[0])
+    return [dict(r, matched=[s for s in r["skills"] if s in need]) for sc, r in scored if sc > 0][:limit]

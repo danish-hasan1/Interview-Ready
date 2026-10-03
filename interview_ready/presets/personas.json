@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "personas": [
+    {
+      "id": "friendly",
+      "label": "Friendly",
+      "blurb": "Warm and encouraging. One gentle nudge when you are vague.",
+      "max_followups": 1,
+      "extras": [],
+      "phrases": {
+        "unstructured": "Could you give me the headline first, then the main points?",
+        "no_numbers": "That's helpful. Could you put a number on it?",
+        "no_ownership": "Lovely. Which part did you personally lead?",
+        "no_impact": "What difference did it make to the business?",
+        "too_long": "Thank you. Could you bring that down to the key points?",
+        "vague": "Could you give me one specific example?"
+      }
+    },
+    {
+      "id": "standard",
+      "label": "Standard",
+      "blurb": "Professional and direct. Pushes back once when needed.",
+      "max_followups": 1,
+      "extras": [],
+      "phrases": {}
+    },
+    {
+      "id": "aggressive",
+      "label": "Aggressive",
+      "blurb": "Interrupts, doubts your numbers, and pushes back twice.",
+      "max_followups": 2,
+      "extras": [],
+      "phrases": {
+        "unstructured": "I'm not following. Stop. One sentence: what is your answer?",
+        "no_numbers": "Numbers. Now. How much, how many?",
+        "no_ownership": "That was 'we' again. What did YOU do?",
+        "no_impact": "So what? That's operational. Where is the business impact?",
+        "too_long": "Stop. I've lost you. Thirty seconds.",
+        "vague": "That's vague. Give me one concrete example, with a figure."
+      }
+    },
+    {
+      "id": "silent",
+      "label": "Silent",
+      "blurb": "Says little, leaves silence, tests whether you keep talking or stay structured.",
+      "max_followups": 1,
+      "extras": [],
+      "phrases": {
+        "unstructured": "(Silence.) ... Go on, give me the headline.",
+        "no_numbers": "(Silence.) ... Anything quantifiable?",
+        "no_ownership": "(Silence.) ... And your part?",
+        "no_impact": "(Silence.) ... And the impact?",
+        "too_long": "(Long pause.) ... Is that your answer?",
+        "vague": "(Silence.) ... An example?"
+      }
+    },
+    {
+      "id": "technical",
+      "label": "Technical",
+      "blurb": "Probes metrics, data quality and method.",
+      "max_followups": 2,
+      "extras": [
+        {
+          "question": "Which funnel metrics do you track, and how do you know the data is reliable?",
+          "ref": "Persona: technical"
+        },
+        {
+          "question": "How did you test whether that change caused the improvement, rather than coincided with it?",
+          "ref": "Persona: technical"
+        }
+      ],
+      "phrases": {
+        "no_numbers": "What was the sample size and the exact figure?",
+        "no_impact": "How did you measure the effect, and against what baseline?"
+      }
+    },
+    {
+      "id": "ceo",
+      "label": "CEO-style",
+      "blurb": "Commercial, impatient, wants the bottom line first.",
+      "max_followups": 2,
+      "extras": [
+        {
+          "question": "What did this do for revenue, cost or margin? Bottom line first.",
+          "ref": "Persona: CEO"
+        },
+        {
+          "question": "If I gave you half the budget, what would you cut and what would break?",
+          "ref": "Persona: CEO"
+        }
+      ],
+      "phrases": {
+        "unstructured": "Bottom line first. What's the answer?",
+        "no_numbers": "What's the number?",
+        "no_impact": "What does that do to the P&L?",
+        "too_long": "I have two minutes. Land it.",
+        "no_ownership": "Who decided that, you or the team?"
+      }
+    }
+  ]
+}

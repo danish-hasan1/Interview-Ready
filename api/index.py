@@ -15,7 +15,10 @@ from interview_ready.coach import coach_note  # noqa: E402
 from interview_ready.cv_analysis import analyse_cv
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
 from interview_ready.gaps import analyse_gaps, gap_items  # noqa: E402
-from interview_ready.interview import build_queue, notes_plan, start_state, step
+from interview_ready.brief import build_brief
+from interview_ready.interview import build_queue, notes_plan, persona_plan, start_state, step
+from interview_ready import speech, stories as story_bank
+from interview_ready.spaced import due_items
 from interview_ready.llm_provider import LLMUnavailable, get_provider  # noqa: E402
 from interview_ready.parsing import extract_text  # noqa: E402
 from interview_ready import training  # noqa: E402
@@ -72,6 +75,7 @@ class StartIn(BaseModel):
     notes: str = ""
     focus: str = ""
     max_questions: int = 6
+    persona: str = "standard"
 
 
 class AnswerIn(BaseModel):
@@ -154,12 +158,14 @@ def claim_questions(body: ClaimsIn):
 
 @app.post("/api/interview/start")
 def interview_start(body: StartIn, store=Depends(get_store)):
-    plan = notes_plan(body.notes) if not body.focus else {"extras": [], "max_followups": 1}
+    npl = notes_plan(body.notes) if not body.focus else {"extras": [], "max_followups": 1}
+    per = persona_plan(body.persona)
+    plan = {"extras": (per["extras"] + npl["extras"])[:3], "max_followups": max(npl["max_followups"], per["max_followups"])}
     items = plan["extras"] + [g.model_dump() for g in body.gap_items]
     queue = build_queue(_to_claims(body.claims), items, min(max(body.max_questions, 1), 10), body.focus)
     if not queue:
         raise HTTPException(400, "No questions could be built from this CV")
-    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue), plan["max_followups"])}
+    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue), plan["max_followups"], per["phrases"], per["id"])}
 
 
 @app.post("/api/interview/answer")
@@ -215,6 +221,7 @@ def training_overview(store=Depends(get_store)):
         "progress": store.training_progress(),
         "rewrite_bullets": review["bullets_to_fix"] if review else [],
         "claim": claims[0].text if claims else "", "metric": metric,
+        "resources": training.recommend_resources(prof.get("dims", {}), plan),
     }
 
 
@@ -224,6 +231,8 @@ def training_check(body: CheckIn):
         if not body.text.strip():
             raise HTTPException(400, "Write your rewrite first")
         return training.check_rewrite(body.original, body.text)
+    if body.kind == "pressure":
+        return training.check_pressure(body.lesson_id, body.text)
     if body.kind == "build":
         try:
             return training.check_build(body.lesson_id, body.values)
@@ -234,7 +243,7 @@ def training_check(body: CheckIn):
 
 @app.post("/api/training/complete")
 def training_complete(body: CompleteIn, store=Depends(get_store)):
-    if body.lesson_id not in training.lesson_map():
+    if body.lesson_id not in training.lesson_map() and body.lesson_id != "pressure_drill":
         raise HTTPException(404, "Unknown lesson")
     store.record_training(body.lesson_id, body.score)
     return {"progress": store.training_progress()}
@@ -290,7 +299,140 @@ def library_delete(item_id: int, store=Depends(get_store)):
 
 @app.get("/api/profile")
 def profile(store=Depends(get_store)):
-    return store.profile()
+    p = store.profile()
+    p["due"] = due_items(p["refs"])
+    return p
+
+
+@app.get("/api/personas")
+def personas():
+    from interview_ready.config import preset
+    return {"personas": [{k: v for k, v in x.items() if k in ("id", "label", "blurb")} for x in preset("personas")["personas"]]}
+
+
+@app.get("/api/drills/pressure")
+def pressure_drill(store=Depends(get_store)):
+    from interview_ready.config import preset
+    cv_text, _ = _context(store)
+    claims = [c for c in extract_claims(cv_text) if c.type == "metric"] if cv_text else []
+    phrases = preset("pressure")
+    rounds = []
+    for i, key in enumerate(training.PRESSURE_ROUNDS):
+        claim = claims[i % len(claims)].text if claims else "your strongest result at your last role"
+        rounds.append({"key": key, "challenge": phrases[key], "claim": claim, "seconds": 45})
+    return {"rounds": rounds}
+
+
+@app.get("/api/interview-brief")
+def interview_brief(store=Depends(get_store)):
+    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    if not cv:
+        return {"has_cv": False}
+    claims = extract_claims(cv["text"])
+    gaps = analyse_gaps(cv["text"], jd["text"]) if jd else []
+    return {"has_cv": True, **build_brief(cv["text"], jd["text"] if jd else "", gaps, claims, store.profile())}
+
+
+class StoryIn(BaseModel):
+    id: int | None = None
+    theme: str
+    title: str = ""
+    fields: dict
+
+
+@app.get("/api/stories")
+def stories_list(store=Depends(get_store)):
+    items = store.list_stories()
+    return {"themes": story_bank.themes(), "stories": items, "coverage": story_bank.coverage(items)}
+
+
+@app.post("/api/stories/check")
+def stories_check(body: StoryIn):
+    try:
+        return story_bank.check_story(body.theme, body.fields)
+    except KeyError:
+        raise HTTPException(404, "Unknown theme")
+
+
+@app.post("/api/stories")
+def stories_save(body: StoryIn, store=Depends(get_store)):
+    try:
+        res = story_bank.check_story(body.theme, body.fields)
+    except KeyError:
+        raise HTTPException(404, "Unknown theme")
+    sid = store.save_story(body.id, body.theme, body.title.strip(), body.fields, res["composed"], res["score"])
+    return {"id": sid, "check": res}
+
+
+@app.delete("/api/stories/{story_id}")
+def stories_delete(story_id: int, store=Depends(get_store)):
+    store.delete_story(story_id)
+    return {"ok": True}
+
+
+class DebriefIn(BaseModel):
+    company: str = ""
+    role: str = ""
+    interview_date: str = ""
+    outcome: str = "pending"
+    notes: str = ""
+    questions: list[dict] = []
+
+
+class OutcomeIn(BaseModel):
+    outcome: str
+    notes: str = ""
+
+
+OUTCOMES = ("pending", "offer", "rejected", "withdrawn")
+
+
+@app.get("/api/debriefs")
+def debriefs_list(store=Depends(get_store)):
+    items = store.list_debriefs()
+    done = [d for d in items if d["outcome"] != "pending"]
+    return {"items": items, "stats": {"interviews": len(items), "offers": sum(1 for d in items if d["outcome"] == "offer"),
+                                      "decided": len(done)}}
+
+
+@app.post("/api/debriefs")
+def debriefs_add(body: DebriefIn, store=Depends(get_store)):
+    if body.outcome not in OUTCOMES:
+        raise HTTPException(400, "Unknown outcome")
+    qs = [{"question": q.get("question", "").strip(), "struggled": bool(q.get("struggled")), "notes": q.get("notes", "")}
+          for q in body.questions if q.get("question", "").strip()]
+    return {"id": store.add_debrief(body.company, body.role, body.interview_date, body.outcome, body.notes, qs)}
+
+
+@app.post("/api/debriefs/{debrief_id}/outcome")
+def debriefs_outcome(debrief_id: int, body: OutcomeIn, store=Depends(get_store)):
+    if body.outcome not in OUTCOMES:
+        raise HTTPException(400, "Unknown outcome")
+    store.update_debrief(debrief_id, body.outcome, body.notes)
+    return {"ok": True}
+
+
+@app.delete("/api/debriefs/{debrief_id}")
+def debriefs_delete(debrief_id: int, store=Depends(get_store)):
+    store.delete_debrief(debrief_id)
+    return {"ok": True}
+
+
+@app.get("/api/voice")
+def voice_status():
+    return {"available": (not HOSTED) and speech.available()}
+
+
+@app.post("/api/voice/transcribe")
+async def voice_transcribe(audio: UploadFile = File(...)):
+    if HOSTED or not speech.available():
+        raise HTTPException(501, "Voice runs only on a local install with faster-whisper (pip install -r requirements-voice.txt)")
+    data = await audio.read()
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Recording too large")
+    words = speech.transcribe(data)  # audio is processed in memory and never stored
+    m = speech.speech_metrics(words)
+    return {"text": " ".join(w["word"] for w in words), "metrics": m, "coaching": speech.coaching(m)}
 
 
 @app.get("/api/workspace")

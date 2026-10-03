@@ -18,13 +18,15 @@ export type Score = { dims: Record<string, number>; fixes: string[]; total: numb
 export type Turn = { question: string; kind: string; ref?: string };
 export type InterviewState = { queue: Turn[]; asked: number; followups_used: number; current: Turn | null };
 
-export type RefStat = { attempts: number; last: number; best: number };
+export type RefStat = { attempts: number; last: number; best: number; last_at?: string };
+export type Due = { ref: string; state: "shaky" | "solid"; last: number; attempts: number; overdue_days: number };
 export type Profile = {
   sessions: { id: number; created: string; n: number; avg_total: number; dims: Record<string, number> }[];
   weaknesses: [string, number][];
   dims: Record<string, number>;
   answers: number;
   refs: Record<string, RefStat>;
+  due?: Due[];
 };
 
 export type Workspace = { has_cv: false } | ({ has_cv: true; cv_name: string; has_jd: boolean } & Analysis);
@@ -49,8 +51,32 @@ export type QuizQ = { q: string; options: string[]; answer: number; why: string 
 export type TrainingOverview = {
   has_cv: boolean; lessons: Lesson[]; quizzes: Record<string, QuizQ[]>; plan: PlanItem[];
   progress: Record<string, { attempts: number; best: number; last: number }>;
-  rewrite_bullets: BulletReview[]; claim: string; metric: string;
+  rewrite_bullets: BulletReview[]; claim: string; metric: string; resources: Resource[];
 };
 
 export type Coach = { text: string; source: "library" | "model" } | null;
 export type LibraryItem = { id: number; kind: string; question: string; text: string; approved: boolean };
+
+export type Resource = { title: string; author: string; format: string; level: string; skills: string[]; why: string; matched: string[] };
+export type Persona = { id: string; label: string; blurb: string };
+
+export type Theme = { id: string; label: string; core: boolean; prompt: string; cues: string[] };
+export type StoryField = { key: string; label: string; hint: string; joiner: string };
+export type Story = { id: number; theme: string; title: string; fields: Record<string, string>; composed: string; score: number };
+export type StoriesData = { themes: { themes: Theme[]; fields: StoryField[] }; stories: Story[]; coverage: { core_total: number; core_ready: number; missing_core: string[] } };
+export type StoryCheck = { fields: { key: string; ok: boolean; msg: string }[]; composed: string; score: number; dims: Record<string, number>; fixes: string[]; framework: string; ready: boolean };
+
+export type DebriefQ = { question: string; struggled: boolean; notes?: string };
+export type Debrief = { id: number; company: string; role: string; interview_date: string | null; outcome: "pending" | "offer" | "rejected" | "withdrawn"; notes: string; questions: DebriefQ[]; created: string };
+export type DebriefsData = { items: Debrief[]; stats: { interviews: number; offers: number; decided: number } };
+
+export type BriefData = {
+  has_cv: boolean;
+  role_fit: { covered: number; total: number; percent: number | null };
+  claims_to_defend: { text: string; numbers: string[]; state: "untested" | "shaky" | "solid"; ownership: string }[];
+  gaps: { requirement: string; status: string }[];
+  likely_questions: { question: string; about: string; state: string }[];
+  ask_them: string[];
+  pitch: { structure: string[]; draft: string };
+  focus: { weakest: [string, number][]; due_now: number };
+};

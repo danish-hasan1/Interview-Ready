@@ -82,20 +82,22 @@ def step(state: dict, answer: str, max_questions: int = 10, max_followups: int =
     score = score_answer(answer, cur.question)
     key = follow_up_for(answer, score) if cur.kind != "followup" and used < max_followups else None
     if key:
-        nxt, used = Turn(preset("pressure")[key], "followup", cur.ref), used + 1
+        phrases = {**preset("pressure"), **state.get("phrases", {})}
+        nxt, used = Turn(phrases[key], "followup", cur.ref), used + 1
     elif asked >= min(max_questions, len(queue)):
         nxt = None
     else:
         nxt, asked, used = queue[asked], asked + 1, 0
     return score, {
         "queue": state["queue"], "asked": asked, "followups_used": used, "max_followups": max_followups,
+        "phrases": state.get("phrases", {}), "persona": state.get("persona", "standard"),
         "current": None if nxt is None else {"question": nxt.question, "kind": nxt.kind, "ref": nxt.ref},
     }
 
 
-def start_state(queue: list, max_questions: int = 10, max_followups: int = 1) -> dict:
+def start_state(queue: list, max_questions: int = 10, max_followups: int = 1, phrases: dict | None = None, persona: str = "standard") -> dict:
     qs = queue[:max_questions]
-    return {"max_followups": max_followups, "queue": [{"question": t.question, "kind": t.kind, "ref": t.ref} for t in qs], "asked": 1, "followups_used": 0,
+    return {"max_followups": max_followups, "phrases": phrases or {}, "persona": persona, "queue": [{"question": t.question, "kind": t.kind, "ref": t.ref} for t in qs], "asked": 1, "followups_used": 0,
             "current": {"question": qs[0].question, "kind": qs[0].kind, "ref": qs[0].ref} if qs else None}
 
 
@@ -106,3 +108,8 @@ def notes_plan(notes: str) -> dict:
     extras = [{"question": r["question"], "ref": r["ref"]} for r in rules["rules"] if any(m in low for m in r["match"])]
     pressure = 2 if any(c in low for c in rules["pressure_cues"]) else 1
     return {"extras": extras[:2], "max_followups": pressure}
+
+
+def persona_plan(persona_id: str) -> dict:
+    p = next((x for x in preset("personas")["personas"] if x["id"] == persona_id), None) or next(x for x in preset("personas")["personas"] if x["id"] == "standard")
+    return {"id": p["id"], "max_followups": p["max_followups"], "extras": p["extras"], "phrases": p["phrases"]}

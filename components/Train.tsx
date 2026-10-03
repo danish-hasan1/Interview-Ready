@@ -13,11 +13,13 @@ export default function Train({ initialLesson, goBrief, goPractice, onChanged }:
 }) {
   const [o, setO] = useState<TrainingOverview | null>(null);
   const [active, setActive] = useState<string | null>(initialLesson ?? null);
+  const [pressure, setPressure] = useState(false);
   const load = useCallback(() => api<TrainingOverview>("/training").then(setO), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (initialLesson) setActive(initialLesson); }, [initialLesson]);
 
   if (!o) return null;
+  if (pressure) return <PressureDrill back={() => setPressure(false)} onSaved={() => { load(); onChanged(); }} />;
   const lesson = o.lessons.find((l) => l.id === active);
   if (lesson) return <LessonView lesson={lesson} o={o} back={() => setActive(null)} onSaved={() => { load(); onChanged(); }} next={(id) => setActive(id)} />;
 
@@ -61,6 +63,13 @@ export default function Train({ initialLesson, goBrief, goPractice, onChanged }:
         </div>
       )}
 
+      <button onClick={() => setPressure(true)} className="sheet mb-8 flex w-full items-center justify-between gap-4 border-l-[3px] border-l-pen p-5 text-left transition-colors hover:border-ink">
+        <span><span className="label !text-pen">Timed practice</span>
+          <span className="block font-display text-xl font-bold">Pressure drills</span>
+          <span className="text-sm text-muted">Six rounds. The interviewer interrupts with a challenge and you have 45 seconds to recover. {o.progress["pressure_drill"] ? `Best ${o.progress["pressure_drill"].best}/10.` : ""}</span></span>
+        <span className="btn btn-primary">Start</span>
+      </button>
+
       {others.length > 0 && (
         <>
           <p className="label mb-3">More lessons</p>
@@ -73,6 +82,21 @@ export default function Train({ initialLesson, goBrief, goPractice, onChanged }:
             ))}
           </div>
         </>
+      )}
+      {o.resources.length > 0 && (
+        <div className="mt-10">
+          <p className="label mb-1">Read next, matched to your weak spots</p>
+          <p className="mb-3 text-sm text-muted">Titles only, so search them or borrow them. Check the current edition.</p>
+          <ul className="grid gap-3 md:grid-cols-2">
+            {o.resources.map((r) => (
+              <li key={r.title} className="sheet p-4">
+                <p className="font-display font-bold">{r.title}</p>
+                <p className="label">{r.author} · {r.format} · {r.level}</p>
+                <p className="mt-2 text-sm text-muted">{r.why}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
@@ -261,5 +285,73 @@ function QuizDrill({ questions, save }: { questions: QuizQ[]; save: (s: number) 
         </motion.div>
       )}
     </div>
+  );
+}
+
+
+type Round = { key: string; challenge: string; claim: string; seconds: number };
+
+function PressureDrill({ back, onSaved }: { back: () => void; onSaved: () => void }) {
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [i, setI] = useState(0);
+  const [text, setText] = useState("");
+  const [left, setLeft] = useState(45);
+  const [result, setResult] = useState<{ pass: boolean; words: number; message: string } | null>(null);
+  const [passes, setPasses] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => { api<{ rounds: Round[] }>("/drills/pressure").then((r) => setRounds(r.rounds)); }, []);
+  useEffect(() => {
+    setLeft(rounds[i]?.seconds ?? 45);
+    if (!rounds.length || result || done) return;
+    const id = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [i, rounds, result, done]);
+
+  const r = rounds[i];
+  async function submit() {
+    const res = await post<{ pass: boolean; words: number; message: string }>("/training/check", { kind: "pressure", lesson_id: r.key, text });
+    setResult(left === 0 ? { ...res, pass: false, message: "Out of time. " + res.message } : res);
+    if (res.pass && left > 0) setPasses((p) => p + 1);
+  }
+  async function next() {
+    if (i + 1 >= rounds.length) {
+      setDone(true);
+      await post("/training/complete", { lesson_id: "pressure_drill", score: +((passes / rounds.length) * 10).toFixed(1) });
+      onSaved();
+    } else { setI(i + 1); setText(""); setResult(null); }
+  }
+  if (!r) return null;
+
+  if (done)
+    return (
+      <section><PageHeader title="Pressure drills complete" />
+        <div className="sheet p-6"><p className="font-display text-5xl font-extrabold">{passes}<span className="text-xl text-muted"> / {rounds.length}</span></p>
+          <p className="mt-2 text-sm text-muted">{passes >= 5 ? "You recover cleanly. Keep it under real conditions in Practice with an aggressive interviewer." : "Run it again. The answer to every challenge is shorter, with a number."}</p>
+          <div className="mt-4 flex gap-2"><Btn onClick={() => { setI(0); setText(""); setResult(null); setPasses(0); setDone(false); }}>Run again</Btn><Btn variant="ghost" onClick={back}>Back to training</Btn></div></div></section>
+    );
+
+  return (
+    <section>
+      <button onClick={back} className="label mb-4 hover:text-ink">← Back to training</button>
+      <PageHeader title="Pressure drills">Round {i + 1} of {rounds.length}. Answer in one or two sentences.</PageHeader>
+      <div className="sheet space-y-4 p-5">
+        <p className="label">You said on your CV</p>
+        <p className="text-[15px]">{r.claim}</p>
+        <div className="pen-note"><p className="label mb-1 !text-pen">Interviewer interrupts</p><p className="text-lg font-semibold">{r.challenge}</p></div>
+        <div className="flex items-center justify-between">
+          <span className={`font-mono text-2xl font-semibold ${left <= 10 ? "text-pen" : ""}`}>0:{String(left).padStart(2, "0")}</span>
+          <span className="label">{text.trim() ? text.trim().split(/\s+/).length : 0} words</span>
+        </div>
+        <textarea aria-label="Your recovery" rows={3} value={text} disabled={!!result} onChange={(e) => setText(e.target.value)} placeholder="Your recovery…"
+          className="w-full resize-y rounded-md border border-line bg-paper/60 p-3 text-sm outline-none focus:border-blue" />
+        {!result ? <Btn disabled={!text.trim()} onClick={submit}>Submit</Btn> : (
+          <div className="space-y-3">
+            <p className={`font-semibold ${result.pass ? "text-solid" : "text-pen"}`}>{result.message}</p>
+            <Btn onClick={next}>{i + 1 >= rounds.length ? "Finish" : "Next round"}</Btn>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

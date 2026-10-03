@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "leadership",
+      "label": "Leading a team",
+      "core": true,
+      "prompt": "Tell me about a time you led a team through a hard change.",
+      "cues": [
+        "lead",
+        "team",
+        "manage",
+        "mentor",
+        "coach",
+        "people"
+      ]
+    },
+    {
+      "id": "failure",
+      "label": "A failure",
+      "core": true,
+      "prompt": "Tell me about a time you failed.",
+      "cues": [
+        "fail",
+        "mistake",
+        "wrong",
+        "setback",
+        "went badly",
+        "regret"
+      ]
+    },
+    {
+      "id": "conflict",
+      "label": "Conflict",
+      "core": true,
+      "prompt": "Tell me about a conflict with a stakeholder and how you handled it.",
+      "cues": [
+        "conflict",
+        "disagree",
+        "difficult",
+        "push back",
+        "pushback",
+        "resistance",
+        "challenge"
+      ]
+    },
+    {
+      "id": "transformation",
+      "label": "Transformation",
+      "core": true,
+      "prompt": "Tell me about a transformation you drove.",
+      "cues": [
+        "transform",
+        "redesign",
+        "build",
+        "implement",
+        "launch",
+        "turnaround",
+        "overhaul",
+        "change"
+      ]
+    },
+    {
+      "id": "commercial",
+      "label": "Commercial impact",
+      "core": true,
+      "prompt": "Tell me about a decision that moved revenue, cost or margin.",
+      "cues": [
+        "revenue",
+        "cost",
+        "margin",
+        "budget",
+        "p&l",
+        "commercial",
+        "business case",
+        "roi",
+        "profit"
+      ]
+    },
+    {
+      "id": "influence",
+      "label": "Influencing seniors",
+      "core": false,
+      "prompt": "Tell me about persuading a senior leader to change their mind.",
+      "cues": [
+        "influence",
+        "persuade",
+        "convince",
+        "executive",
+        "board",
+        "buy-in",
+        "stakeholder"
+      ]
+    },
+    {
+      "id": "ambiguity",
+      "label": "Acting under ambiguity",
+      "core": false,
+      "prompt": "Tell me about a time you had to act with incomplete information.",
+      "cues": [
+        "ambigu",
+        "uncertain",
+        "incomplete",
+        "unclear",
+        "no data",
+        "without"
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "key": "context",
+      "label": "Context",
+      "hint": "Where, when, what was at stake. Two sentences.",
+      "joiner": "Context: "
+    },
+    {
+      "key": "problem",
+      "label": "Problem",
+      "hint": "What was going wrong or at risk?",
+      "joiner": "The problem: "
+    },
+    {
+      "key": "action",
+      "label": "Your action",
+      "hint": "What YOU decided and did. Use I, not we.",
+      "joiner": "My action: ",
+      "needs_i": true
+    },
+    {
+      "key": "result",
+      "label": "Result",
+      "hint": "What changed, in numbers.",
+      "joiner": "The result: ",
+      "needs_number": true
+    },
+    {
+      "key": "impact",
+      "label": "Business impact",
+      "hint": "Revenue, cost, margin, time or risk, with a figure.",
+      "joiner": "The business impact: ",
+      "needs_number": true
+    }
+  ]
+}

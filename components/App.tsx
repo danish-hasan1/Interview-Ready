@@ -5,6 +5,9 @@ import { api } from "@/lib/api";
 import type { Analysis, Profile, Workspace } from "@/lib/types";
 import Brief, { type DrillRequest } from "./Brief";
 import CvReview from "./CvReview";
+import Debrief from "./Debrief";
+import InterviewBrief from "./InterviewBrief";
+import Stories from "./Stories";
 import Practice from "./Practice";
 import Privacy from "./Privacy";
 import Record from "./Record";
@@ -15,10 +18,12 @@ const NAV = [
   { id: "review", label: "CV review" },
   { id: "train", label: "Train" },
   { id: "practice", label: "Practice" },
+  { id: "stories", label: "Stories" },
+  { id: "debrief", label: "Debrief" },
   { id: "record", label: "Record" },
   { id: "data", label: "Your data" },
 ] as const;
-type Page = (typeof NAV)[number]["id"];
+type Page = (typeof NAV)[number]["id"] | "brief";
 
 export default function App() {
   const [page, setPage] = useState<Page>("board");
@@ -41,7 +46,7 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
+      <header className="no-print sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5 pt-3">
           <span className="flex items-center gap-2.5">
             <span className="grid h-7 w-7 place-items-center rounded-md bg-ink font-display text-[11px] font-extrabold text-white">IR</span>
@@ -69,6 +74,9 @@ export default function App() {
           {page === "board" && <Brief analysis={analysis} setAnalysis={setAnalysis} notes={notes} setNotes={setNotes} profile={profile} onDrill={startDrill} goTo={(p) => { setLessonId(null); setPage(p); }} />}
           {page === "review" && <CvReview refreshKey={analysis} goBrief={() => setPage("board")} onTrain={(id) => { setLessonId(id ?? null); setPage("train"); }} />}
           {page === "train" && <Train initialLesson={lessonId} goBrief={() => setPage("board")} goPractice={() => setPage("practice")} onChanged={refresh} />}
+          {page === "stories" && <Stories />}
+          {page === "debrief" && <Debrief onPractise={(qs) => startDrill({ custom: qs })} />}
+          {page === "brief" && <InterviewBrief goBoard={() => setPage("board")} />}
           {page === "record" && <Record profile={profile} goPractice={() => setPage("practice")} />}
           {page === "data" && <Privacy onDeleted={() => { setAnalysis(null); setProfile(null); setDrill(null); refresh(); }} />}
         </motion.main>}

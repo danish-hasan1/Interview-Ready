@@ -6,14 +6,14 @@ import { defence, type Defence } from "@/lib/status";
 import { OWNERSHIP, type Analysis, type Claim, type Profile } from "@/lib/types";
 import { Btn, PageHeader, Stamp, itemV, listV } from "./ui";
 
-export type DrillRequest = { focus?: string; weakest?: boolean };
+export type DrillRequest = { focus?: string; weakest?: boolean; refs?: string[]; custom?: { question: string; ref: string }[] };
 
 const TYPE = { metric: "Number", action: "Action", title: "Title" } as const;
 type Row = { ref: string; kind: "claim" | "gap"; label: string; claim?: Claim; index?: number; gapStatus?: string; coverage?: number; evidence?: string[] };
 
 export default function Brief({ analysis, setAnalysis, notes, setNotes, profile, onDrill, goTo }: {
   analysis: Analysis | null; setAnalysis: (a: Analysis) => void; notes: string; setNotes: (n: string) => void;
-  profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train") => void;
+  profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train" | "brief") => void;
 }) {
   const [replacing, setReplacing] = useState(false);
   if (!analysis || replacing)
@@ -82,7 +82,7 @@ function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes
 }
 
 function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
-  analysis: Analysis; setAnalysis: (a: Analysis) => void; profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train") => void; onReplace: () => void;
+  analysis: Analysis; setAnalysis: (a: Analysis) => void; profile: Profile | null; onDrill: (r: DrillRequest) => void; goTo: (p: "review" | "train" | "brief") => void; onReplace: () => void;
 }) {
   const [filter, setFilter] = useState<"all" | Defence>("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -109,10 +109,16 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
   return (
     <section>
       <PageHeader title="Defence board"
-        action={<div className="flex gap-2"><Btn variant="ghost" onClick={onReplace}>Replace CV or role</Btn><Btn onClick={() => onDrill({ weakest: true })}>Practise weakest first</Btn></div>}>
+        action={<div className="flex flex-wrap gap-2"><Btn variant="ghost" onClick={onReplace}>Replace CV or role</Btn><Btn variant="ghost" onClick={() => goTo("brief")}>Interview brief</Btn><Btn onClick={() => onDrill({ weakest: true })}>Practise weakest first</Btn></div>}>
         Every claim and unproven requirement, and how well you have defended it so far. {analysis.cv_name && <span className="label">Source: {analysis.cv_name}</span>}
       </PageHeader>
 
+      {!!profile?.due?.length && (
+        <div className="sheet mb-4 flex flex-wrap items-center justify-between gap-3 border-l-[3px] border-l-shaky p-4">
+          <p className="text-sm"><b>{profile.due.length} item{profile.due.length > 1 ? "s" : ""} due for review.</b> Weak answers resurface until they hold up, and solid ones are re-checked so they stay solid.</p>
+          <Btn onClick={() => onDrill({ refs: profile.due!.map((d) => d.ref) })}>Practise what is due</Btn>
+        </div>
+      )}
       {!profile?.sessions.length && (
         <div className="sheet mb-4 flex flex-wrap items-center justify-between gap-3 border-l-[3px] border-l-blue p-4">
           <p className="text-sm"><b>Start before you practise.</b> Review how your CV reads, then work through a short training plan built from it.</p>

@@ -2,176 +2,881 @@
   "version": 1,
   "quizzes": {
     "biz_vocab": [
-      {"q": "Cost per hire is best defined as:", "options": ["Total recruiting spend divided by number of hires", "Salary of the new hire", "Agency fees only", "Cost of the job advert"], "answer": 0, "why": "Include internal costs (team, tools, advertising, agency) divided by hires in the period. Quote it with the baseline and the trend."},
-      {"q": "Time to fill differs from time to hire because:", "options": ["It is the same metric", "Time to fill counts from requisition approval; time to hire counts from candidate application", "Time to hire includes notice period", "Time to fill excludes interviews"], "answer": 1, "why": "Time to fill measures the business's wait. Time to hire measures candidate pipeline speed. Interviewers want you to know which one you cite."},
-      {"q": "Offer acceptance rate is:", "options": ["Offers made divided by interviews held", "Offers accepted divided by offers made", "Hires divided by applicants", "Offers made divided by requisitions"], "answer": 1, "why": "A falling acceptance rate points to pay, process speed or employer brand, so be ready to diagnose which."},
-      {"q": "Gross margin is:", "options": ["Revenue minus operating expenses", "Revenue minus cost of goods or services sold, as a share of revenue", "Net profit divided by headcount", "Revenue divided by cost"], "answer": 1, "why": "It is what is left after direct delivery costs, before overheads. Hiring affects it through delivery headcount cost and utilisation."},
-      {"q": "EBITDA stands for:", "options": ["Earnings before interest, tax, depreciation and amortisation", "Estimated business income, tax, debt and assets", "Earnings before income and tax deductions applied", "Equity, bonds, income, tax, debt and assets"], "answer": 0, "why": "A proxy for operating profit. Talent cost sits above it, so hiring decisions move EBITDA directly."},
-      {"q": "Revenue per employee is useful because it shows:", "options": ["How happy staff are", "How productively headcount converts into revenue", "How many people were hired", "The size of the payroll"], "answer": 1, "why": "A workforce planning headline: if it falls while headcount grows, hiring is outrunning demand."},
-      {"q": "Attrition of 20% in a 100-person team means:", "options": ["20 people left in the period, so roughly 20 backfills", "20 people were hired", "Productivity fell 20%", "20% of roles are open"], "answer": 0, "why": "Attrition drives hiring volume. Know what share is regretted loss and what each exit costs to replace."},
-      {"q": "A headcount plan is:", "options": ["A list of current employees", "A forecast of roles needed, when, and at what cost, tied to business targets", "The recruiting team org chart", "An offer letter template"], "answer": 1, "why": "It converts strategy into hires and budget. Say how you build it: demand forecast, attrition backfill, cost, timing."},
-      {"q": "Quality of hire is most credibly measured by:", "options": ["Hiring manager's first-week impression", "Performance, retention and ramp-up speed of hires over time", "Number of interviews held", "Candidate satisfaction only"], "answer": 1, "why": "Combine performance rating, first-year retention and time to productivity. A single number with a method beats an adjective."},
-      {"q": "Unit economics asks:", "options": ["How big is the company?", "Does each unit (customer, hire, order) earn more than it costs?", "How many units were sold in total?", "What is the unit price?"], "answer": 1, "why": "Apply it to hiring: what does one hire cost, and what does it return? That is the language of a business partner."}
+      {
+        "q": "Cost per hire is best defined as:",
+        "options": [
+          "Total recruiting spend divided by number of hires",
+          "Salary of the new hire",
+          "Agency fees only",
+          "Cost of the job advert"
+        ],
+        "answer": 0,
+        "why": "Include internal costs (team, tools, advertising, agency) divided by hires in the period. Quote it with the baseline and the trend."
+      },
+      {
+        "q": "Time to fill differs from time to hire because:",
+        "options": [
+          "It is the same metric",
+          "Time to fill counts from requisition approval; time to hire counts from candidate application",
+          "Time to hire includes notice period",
+          "Time to fill excludes interviews"
+        ],
+        "answer": 1,
+        "why": "Time to fill measures the business's wait. Time to hire measures candidate pipeline speed. Interviewers want you to know which one you cite."
+      },
+      {
+        "q": "Offer acceptance rate is:",
+        "options": [
+          "Offers made divided by interviews held",
+          "Offers accepted divided by offers made",
+          "Hires divided by applicants",
+          "Offers made divided by requisitions"
+        ],
+        "answer": 1,
+        "why": "A falling acceptance rate points to pay, process speed or employer brand, so be ready to diagnose which."
+      },
+      {
+        "q": "Gross margin is:",
+        "options": [
+          "Revenue minus operating expenses",
+          "Revenue minus cost of goods or services sold, as a share of revenue",
+          "Net profit divided by headcount",
+          "Revenue divided by cost"
+        ],
+        "answer": 1,
+        "why": "It is what is left after direct delivery costs, before overheads. Hiring affects it through delivery headcount cost and utilisation."
+      },
+      {
+        "q": "EBITDA stands for:",
+        "options": [
+          "Earnings before interest, tax, depreciation and amortisation",
+          "Estimated business income, tax, debt and assets",
+          "Earnings before income and tax deductions applied",
+          "Equity, bonds, income, tax, debt and assets"
+        ],
+        "answer": 0,
+        "why": "A proxy for operating profit. Talent cost sits above it, so hiring decisions move EBITDA directly."
+      },
+      {
+        "q": "Revenue per employee is useful because it shows:",
+        "options": [
+          "How happy staff are",
+          "How productively headcount converts into revenue",
+          "How many people were hired",
+          "The size of the payroll"
+        ],
+        "answer": 1,
+        "why": "A workforce planning headline: if it falls while headcount grows, hiring is outrunning demand."
+      },
+      {
+        "q": "Attrition of 20% in a 100-person team means:",
+        "options": [
+          "20 people left in the period, so roughly 20 backfills",
+          "20 people were hired",
+          "Productivity fell 20%",
+          "20% of roles are open"
+        ],
+        "answer": 0,
+        "why": "Attrition drives hiring volume. Know what share is regretted loss and what each exit costs to replace."
+      },
+      {
+        "q": "A headcount plan is:",
+        "options": [
+          "A list of current employees",
+          "A forecast of roles needed, when, and at what cost, tied to business targets",
+          "The recruiting team org chart",
+          "An offer letter template"
+        ],
+        "answer": 1,
+        "why": "It converts strategy into hires and budget. Say how you build it: demand forecast, attrition backfill, cost, timing."
+      },
+      {
+        "q": "Quality of hire is most credibly measured by:",
+        "options": [
+          "Hiring manager's first-week impression",
+          "Performance, retention and ramp-up speed of hires over time",
+          "Number of interviews held",
+          "Candidate satisfaction only"
+        ],
+        "answer": 1,
+        "why": "Combine performance rating, first-year retention and time to productivity. A single number with a method beats an adjective."
+      },
+      {
+        "q": "Unit economics asks:",
+        "options": [
+          "How big is the company?",
+          "Does each unit (customer, hire, order) earn more than it costs?",
+          "How many units were sold in total?",
+          "What is the unit price?"
+        ],
+        "answer": 1,
+        "why": "Apply it to hiring: what does one hire cost, and what does it return? That is the language of a business partner."
+      }
+    ],
+    "tech_ta": [
+      {
+        "q": "Which funnel metric best shows where candidates are being lost?",
+        "options": [
+          "Total applications",
+          "Stage-to-stage conversion rate",
+          "Number of job boards used",
+          "Recruiter headcount"
+        ],
+        "answer": 1,
+        "why": "Stage conversion shows the exact step losing people, so you fix the right bottleneck."
+      },
+      {
+        "q": "Source of hire tells you:",
+        "options": [
+          "Which channel produced hires, not just applicants",
+          "Where recruiters sit",
+          "How fast offers are approved",
+          "Which hires got promoted"
+        ],
+        "answer": 0,
+        "why": "Judge channels by hires and quality, not applicant volume."
+      },
+      {
+        "q": "A structured interview is one where:",
+        "options": [
+          "Questions are scripted and scored against the same criteria",
+          "The interviewer chats freely",
+          "Only senior people interview",
+          "It always lasts one hour"
+        ],
+        "answer": 0,
+        "why": "Same questions plus a scoring rubric raise predictive validity and cut bias."
+      },
+      {
+        "q": "Employer value proposition (EVP) is:",
+        "options": [
+          "The salary band",
+          "What the employer offers in return for talent and why people join and stay",
+          "An agency fee schedule",
+          "The job description"
+        ],
+        "answer": 1,
+        "why": "EVP drives offer acceptance and attraction. Tie it to a measurable result."
+      },
+      {
+        "q": "Adverse impact in hiring means:",
+        "options": [
+          "A selection method disadvantages a protected group disproportionately",
+          "A candidate rejected an offer",
+          "A slow process",
+          "High attrition"
+        ],
+        "answer": 0,
+        "why": "Monitor stage pass rates by group. It is a legal and ethical risk and a credibility point."
+      },
+      {
+        "q": "Which is a lagging indicator of hiring quality?",
+        "options": [
+          "Time to fill",
+          "First-year retention and performance of hires",
+          "Number of interviews",
+          "Applications per role"
+        ],
+        "answer": 1,
+        "why": "Quality shows up after the hire. Pair it with leading indicators like pass-through rates."
+      },
+      {
+        "q": "Pipeline coverage of 3x for a role means:",
+        "options": [
+          "Three qualified candidates in process per hire needed",
+          "Three recruiters on the role",
+          "Three interview rounds",
+          "Three offers made"
+        ],
+        "answer": 0,
+        "why": "Coverage ratios let you forecast whether you will hit hiring targets."
+      },
+      {
+        "q": "Requisitions per recruiter is mainly a measure of:",
+        "options": [
+          "Recruiter workload and capacity",
+          "Candidate satisfaction",
+          "Offer quality",
+          "Brand strength"
+        ],
+        "answer": 0,
+        "why": "Use it in capacity planning and to justify headcount in your own function."
+      }
+    ],
+    "english": [
+      {
+        "q": "Choose the precise sentence:",
+        "options": [
+          "I reduced time to hire by 39%.",
+          "I did a reduction in the time to hire which was significant.",
+          "There was a reduction made by me.",
+          "Time to hire got reduced by me a lot."
+        ],
+        "answer": 0,
+        "why": "Active voice, a verb, a number. Shorter is more credible."
+      },
+      {
+        "q": "Which is correct?",
+        "options": [
+          "Fewer candidates applied this month.",
+          "Less candidates applied this month.",
+          "Lesser candidates applied this month.",
+          "Few candidates applies this month."
+        ],
+        "answer": 0,
+        "why": "Use fewer with countable nouns, less with uncountable ones."
+      },
+      {
+        "q": "Pick the strongest opening verb for a CV line:",
+        "options": [
+          "Responsible for",
+          "Helped with",
+          "Redesigned",
+          "Involved in"
+        ],
+        "answer": 2,
+        "why": "Redesigned states a decision you made. The others describe proximity."
+      },
+      {
+        "q": "Which phrase hides ownership?",
+        "options": [
+          "I decided to cut agencies.",
+          "Agencies were cut.",
+          "I cut agencies.",
+          "I led the agency cut."
+        ],
+        "answer": 1,
+        "why": "Passive voice removes the actor. In interviews, name who decided."
+      },
+      {
+        "q": "Choose the correct tense for a completed achievement:",
+        "options": [
+          "I have increase offer acceptance to 91%.",
+          "I increased offer acceptance to 91%.",
+          "I am increase offer acceptance to 91%.",
+          "I increasing offer acceptance to 91%."
+        ],
+        "answer": 1,
+        "why": "Simple past for finished results."
+      },
+      {
+        "q": "Which is the better headline sentence?",
+        "options": [
+          "So basically there were many things going on.",
+          "I cut cost per hire by 24% in a year.",
+          "It is a long story but anyway.",
+          "Well, it depends on a lot of factors."
+        ],
+        "answer": 1,
+        "why": "A headline commits to an answer and a number."
+      },
+      {
+        "q": "“Affect” or “effect”: Our change had a strong ___ on retention.",
+        "options": [
+          "affect",
+          "effect",
+          "affects",
+          "effected"
+        ],
+        "answer": 1,
+        "why": "Effect is the noun (the result). Affect is usually the verb."
+      },
+      {
+        "q": "Which sounds most senior?",
+        "options": [
+          "I think maybe we could possibly try to...",
+          "I recommend X because Y; the trade-off is Z.",
+          "It might be good if someone looked at it.",
+          "We will see what happens."
+        ],
+        "answer": 1,
+        "why": "Seniority is a recommendation, a reason and a trade-off, said plainly."
+      }
     ]
   },
   "lessons": [
     {
-      "id": "structure", "title": "Answer in a structure they can follow", "skill": "structure", "minutes": 8,
+      "id": "structure",
+      "title": "Answer in a structure they can follow",
+      "skill": "structure",
+      "minutes": 8,
       "why": "The usual failure in senior interviews is not knowledge. It is an answer the interviewer cannot follow, so they say “I'm not following.” A fixed shape fixes that.",
       "steps": [
-        {"title": "Headline first", "body": "Answer the question in one sentence of 25 words or fewer before any detail. If they stop you after that sentence, you have still answered."},
-        {"title": "Three labelled points", "body": "Say “three things” and number them. Labels let the listener hold the thread while you speak."},
-        {"title": "One example that is yours", "body": "A real situation with you in it, a number, and a date or scale. One example beats three generic ones."},
-        {"title": "Land on the result", "body": "End with the outcome in numbers. Then stop talking."}
+        {
+          "title": "Headline first",
+          "body": "Answer the question in one sentence of 25 words or fewer before any detail. If they stop you after that sentence, you have still answered."
+        },
+        {
+          "title": "Three labelled points",
+          "body": "Say “three things” and number them. Labels let the listener hold the thread while you speak."
+        },
+        {
+          "title": "One example that is yours",
+          "body": "A real situation with you in it, a number, and a date or scale. One example beats three generic ones."
+        },
+        {
+          "title": "Land on the result",
+          "body": "End with the outcome in numbers. Then stop talking."
+        }
       ],
       "weak": "We did a lot around hiring improvements, working with the team and the business, and it went really well overall, there were many things involved...",
       "strong": "I cut time to hire from 62 to 38 days. Three things drove it: first sourcing, second screening, third manager training. For example, automating screening freed 11 days. The result: 38 days across 120 roles.",
-      "drill": {"type": "build", "title": "Build one answer in shape",
+      "drill": {
+        "type": "build",
+        "title": "Build one answer in shape",
         "prompt": "Question: “Tell me about {claim}.”",
         "fields": [
-          {"key": "headline", "label": "Headline (one sentence)", "hint": "Answer the question directly, 25 words or fewer.", "max_words": 25},
-          {"key": "p1", "label": "Point 1", "hint": "First, ..."},
-          {"key": "p2", "label": "Point 2", "hint": "Second, ..."},
-          {"key": "p3", "label": "Point 3", "hint": "Third, ..."},
-          {"key": "example", "label": "Example", "hint": "For example, at ... I ...", "needs_number": true},
-          {"key": "result", "label": "Result", "hint": "The result was ... (a number)", "needs_number": true}
-        ], "joiners": {"p1": "First, ", "p2": "Second, ", "p3": "Third, ", "example": "For example, ", "result": "The result: "}}
+          {
+            "key": "headline",
+            "label": "Headline (one sentence)",
+            "hint": "Answer the question directly, 25 words or fewer.",
+            "max_words": 25
+          },
+          {
+            "key": "p1",
+            "label": "Point 1",
+            "hint": "First, ..."
+          },
+          {
+            "key": "p2",
+            "label": "Point 2",
+            "hint": "Second, ..."
+          },
+          {
+            "key": "p3",
+            "label": "Point 3",
+            "hint": "Third, ..."
+          },
+          {
+            "key": "example",
+            "label": "Example",
+            "hint": "For example, at ... I ...",
+            "needs_number": true
+          },
+          {
+            "key": "result",
+            "label": "Result",
+            "hint": "The result was ... (a number)",
+            "needs_number": true
+          }
+        ],
+        "joiners": {
+          "p1": "First, ",
+          "p2": "Second, ",
+          "p3": "Third, ",
+          "example": "For example, ",
+          "result": "The result: "
+        }
+      }
     },
     {
-      "id": "defend_number", "title": "Defend every number on your CV", "skill": "specificity", "minutes": 8,
+      "id": "defend_number",
+      "title": "Defend every number on your CV",
+      "skill": "specificity",
+      "minutes": 8,
       "why": "Interviewers pick the biggest number on your CV and pull on it. If you cannot say how it was measured and what the baseline was, the number becomes a liability.",
       "steps": [
-        {"title": "Say what it means", "body": "Define the metric in one line. “Time to hire: days from application to signed offer.”"},
-        {"title": "Say how it was measured", "body": "Name the source and who agreed it. “ATS data, signed off by Finance.”"},
-        {"title": "Give the baseline", "body": "From what to what, over what period. A number without a baseline cannot be judged."},
-        {"title": "Separate your part", "body": "What you decided and did versus what the team did. Credit the team and keep the credit that is yours."},
-        {"title": "Close on impact", "body": "Translate it into revenue, cost or margin. “38 days saved roughly $0.4M in vacancy cost.”"}
+        {
+          "title": "Say what it means",
+          "body": "Define the metric in one line. “Time to hire: days from application to signed offer.”"
+        },
+        {
+          "title": "Say how it was measured",
+          "body": "Name the source and who agreed it. “ATS data, signed off by Finance.”"
+        },
+        {
+          "title": "Give the baseline",
+          "body": "From what to what, over what period. A number without a baseline cannot be judged."
+        },
+        {
+          "title": "Separate your part",
+          "body": "What you decided and did versus what the team did. Credit the team and keep the credit that is yours."
+        },
+        {
+          "title": "Close on impact",
+          "body": "Translate it into revenue, cost or margin. “38 days saved roughly $0.4M in vacancy cost.”"
+        }
       ],
       "weak": "I reduced time to hire significantly across the business.",
       "strong": "Time to hire is days from application to signed offer, from our ATS. I took it from 62 to 38 days over 12 months. I redesigned screening; the team executed sourcing. At our vacancy cost that is about $0.4M a year.",
-      "drill": {"type": "build", "title": "Defend one number",
+      "drill": {
+        "type": "build",
+        "title": "Defend one number",
         "prompt": "Claim on your CV: “{metric}”. The interviewer says: “What exactly does that number mean?”",
         "fields": [
-          {"key": "meaning", "label": "What it means", "hint": "Define the metric in one line."},
-          {"key": "measured", "label": "How it was measured", "hint": "Source and who agreed it."},
-          {"key": "baseline", "label": "Baseline", "hint": "From what, to what, over how long.", "needs_number": true},
-          {"key": "mine", "label": "What I personally did", "hint": "I decided... I built... I negotiated..."},
-          {"key": "impact", "label": "Business impact", "hint": "Revenue, cost or margin, with a figure.", "needs_number": true}
-        ], "joiners": {"meaning": "", "measured": "It was measured via ", "baseline": "The baseline was ", "mine": "Personally, ", "impact": "The impact: "}}
+          {
+            "key": "meaning",
+            "label": "What it means",
+            "hint": "Define the metric in one line."
+          },
+          {
+            "key": "measured",
+            "label": "How it was measured",
+            "hint": "Source and who agreed it."
+          },
+          {
+            "key": "baseline",
+            "label": "Baseline",
+            "hint": "From what, to what, over how long.",
+            "needs_number": true
+          },
+          {
+            "key": "mine",
+            "label": "What I personally did",
+            "hint": "I decided... I built... I negotiated..."
+          },
+          {
+            "key": "impact",
+            "label": "Business impact",
+            "hint": "Revenue, cost or margin, with a figure.",
+            "needs_number": true
+          }
+        ],
+        "joiners": {
+          "meaning": "",
+          "measured": "It was measured via ",
+          "baseline": "The baseline was ",
+          "mine": "Personally, ",
+          "impact": "The impact: "
+        }
+      }
     },
     {
-      "id": "own_it", "title": "Say what YOU did", "skill": "specificity", "minutes": 6,
+      "id": "own_it",
+      "title": "Say what YOU did",
+      "skill": "specificity",
+      "minutes": 6,
       "why": "“We” hides your contribution. Interviewers hear it as either a passenger or someone avoiding accountability. Own decisions, share credit for execution.",
       "steps": [
-        {"title": "Name the decision", "body": "What did you choose, and what did you reject? Decisions show seniority."},
-        {"title": "Use I for decisions, we for delivery", "body": "“I decided to cut agencies to three; the team ran the transition.”"},
-        {"title": "Open with a strong verb", "body": "Led, built, negotiated, redesigned, cut. Avoid “responsible for”, “helped”, “involved in”."}
+        {
+          "title": "Name the decision",
+          "body": "What did you choose, and what did you reject? Decisions show seniority."
+        },
+        {
+          "title": "Use I for decisions, we for delivery",
+          "body": "“I decided to cut agencies to three; the team ran the transition.”"
+        },
+        {
+          "title": "Open with a strong verb",
+          "body": "Led, built, negotiated, redesigned, cut. Avoid “responsible for”, “helped”, “involved in”."
+        }
       ],
       "weak": "Responsible for helping the team with the agency process.",
       "strong": "Cut agency suppliers from 14 to 3 and renegotiated fees, saving 31% ($380k a year).",
-      "drill": {"type": "rewrite", "title": "Rewrite your own weakest lines", "count": 3,
-        "prompt": "Rewrite each line with a strong verb, your scope, a number and the result."}
+      "drill": {
+        "type": "rewrite",
+        "title": "Rewrite your own weakest lines",
+        "count": 3,
+        "prompt": "Rewrite each line with a strong verb, your scope, a number and the result."
+      }
     },
     {
-      "id": "cv_bullets", "title": "Rewrite CV lines as proof", "skill": "specificity", "minutes": 10,
+      "id": "cv_bullets",
+      "title": "Rewrite CV lines as proof",
+      "skill": "specificity",
+      "minutes": 10,
       "why": "Your CV decides which claims the interviewer attacks. Lines with a number, scope and result invite questions you want. Vague lines invite questions you do not.",
       "steps": [
-        {"title": "Formula", "body": "Strong verb + what + scope (team, budget, volume) + result with a number."},
-        {"title": "Put the result in the line", "body": "“Reduced X from A to B by doing C.” If you cannot fill A and B, find them before the interview."},
-        {"title": "Keep it to one breath", "body": "Under 28 words. Move the story to your answer, not the bullet."}
+        {
+          "title": "Formula",
+          "body": "Strong verb + what + scope (team, budget, volume) + result with a number."
+        },
+        {
+          "title": "Put the result in the line",
+          "body": "“Reduced X from A to B by doing C.” If you cannot fill A and B, find them before the interview."
+        },
+        {
+          "title": "Keep it to one breath",
+          "body": "Under 28 words. Move the story to your answer, not the bullet."
+        }
       ],
       "weak": "Worked on improving the hiring process for various teams.",
       "strong": "Redesigned screening for 8 teams, cutting time to hire from 62 to 38 days across 120 roles.",
-      "drill": {"type": "rewrite", "title": "Rewrite your weakest lines", "count": 4,
-        "prompt": "Rewrite each line as proof: verb, scope, number, result. We re-score it instantly."}
+      "drill": {
+        "type": "rewrite",
+        "title": "Rewrite your weakest lines",
+        "count": 4,
+        "prompt": "Rewrite each line as proof: verb, scope, number, result. We re-score it instantly."
+      }
     },
     {
-      "id": "pl_fluency", "title": "Speak P&L like an operator", "skill": "business_impact", "minutes": 12,
+      "id": "pl_fluency",
+      "title": "Speak P&L like an operator",
+      "skill": "business_impact",
+      "minutes": 12,
       "why": "Senior interviews test business thinking. When asked about impact, most talent leaders talk activity. Walk the P&L instead: revenue, cost, margin, people, operations, growth.",
       "steps": [
-        {"title": "Revenue", "body": "How does hiring speed or quality affect revenue? Roles unfilled mean revenue not delivered. Quote revenue per employee or vacancy cost."},
-        {"title": "Cost", "body": "Cost per hire, agency spend, tooling, and the cost of a vacancy or a bad hire."},
-        {"title": "Margin", "body": "What your actions did to gross or operating margin: lower cost per hire, better utilisation, less attrition."},
-        {"title": "People", "body": "Retention, ramp-up time, quality of hire, manager capability."},
-        {"title": "Operations", "body": "Process and capacity: recruiter productivity, requisitions per recruiter, time to fill."},
-        {"title": "Growth", "body": "How your function enables growth: new markets, new teams, capability the business lacks."}
+        {
+          "title": "Revenue",
+          "body": "How does hiring speed or quality affect revenue? Roles unfilled mean revenue not delivered. Quote revenue per employee or vacancy cost."
+        },
+        {
+          "title": "Cost",
+          "body": "Cost per hire, agency spend, tooling, and the cost of a vacancy or a bad hire."
+        },
+        {
+          "title": "Margin",
+          "body": "What your actions did to gross or operating margin: lower cost per hire, better utilisation, less attrition."
+        },
+        {
+          "title": "People",
+          "body": "Retention, ramp-up time, quality of hire, manager capability."
+        },
+        {
+          "title": "Operations",
+          "body": "Process and capacity: recruiter productivity, requisitions per recruiter, time to fill."
+        },
+        {
+          "title": "Growth",
+          "body": "How your function enables growth: new markets, new teams, capability the business lacks."
+        }
       ],
       "weak": "Talent acquisition supports the business by finding good people quickly.",
       "strong": "Revenue: unfilled sales roles cost about $60k each per month. Cost: cost per hire fell 24%. Margin: agency savings added roughly 0.4 points to operating margin. People: first-year retention rose to 91%. Operations: each recruiter now handles 22 reqs. Growth: we staffed the new region in one quarter.",
-      "drill": {"type": "build", "title": "Walk the P&L for your function",
+      "drill": {
+        "type": "build",
+        "title": "Walk the P&L for your function",
         "prompt": "Question: “How does talent acquisition affect the P&L in your company?” Use your own numbers or sensible estimates.",
         "fields": [
-          {"key": "revenue", "label": "Revenue", "hint": "Vacancy cost, revenue per employee, delivery capacity.", "needs_number": true},
-          {"key": "cost", "label": "Cost", "hint": "Cost per hire, agency spend, cost of a bad hire.", "needs_number": true},
-          {"key": "margin", "label": "Margin", "hint": "Effect on gross or operating margin.", "needs_number": true},
-          {"key": "people", "label": "People", "hint": "Retention, ramp-up, quality of hire.", "needs_number": true},
-          {"key": "operations", "label": "Operations", "hint": "Recruiter productivity, process speed.", "needs_number": true},
-          {"key": "growth", "label": "Growth", "hint": "What hiring unlocks for the business."}
-        ], "joiners": {"revenue": "Revenue: ", "cost": "Cost: ", "margin": "Margin: ", "people": "People: ", "operations": "Operations: ", "growth": "Growth: "}}
+          {
+            "key": "revenue",
+            "label": "Revenue",
+            "hint": "Vacancy cost, revenue per employee, delivery capacity.",
+            "needs_number": true
+          },
+          {
+            "key": "cost",
+            "label": "Cost",
+            "hint": "Cost per hire, agency spend, cost of a bad hire.",
+            "needs_number": true
+          },
+          {
+            "key": "margin",
+            "label": "Margin",
+            "hint": "Effect on gross or operating margin.",
+            "needs_number": true
+          },
+          {
+            "key": "people",
+            "label": "People",
+            "hint": "Retention, ramp-up, quality of hire.",
+            "needs_number": true
+          },
+          {
+            "key": "operations",
+            "label": "Operations",
+            "hint": "Recruiter productivity, process speed.",
+            "needs_number": true
+          },
+          {
+            "key": "growth",
+            "label": "Growth",
+            "hint": "What hiring unlocks for the business."
+          }
+        ],
+        "joiners": {
+          "revenue": "Revenue: ",
+          "cost": "Cost: ",
+          "margin": "Margin: ",
+          "people": "People: ",
+          "operations": "Operations: ",
+          "growth": "Growth: "
+        }
+      }
     },
     {
-      "id": "biz_vocab", "title": "Business and hiring vocabulary check", "skill": "business_impact", "minutes": 6,
+      "id": "biz_vocab",
+      "title": "Business and hiring vocabulary check",
+      "skill": "business_impact",
+      "minutes": 6,
       "why": "Using terms precisely signals fluency. Using them loosely signals the opposite. Ten questions on the language of P&L and talent metrics.",
       "steps": [
-        {"title": "How this works", "body": "Answer each question. You see the reason straight away. Aim for 8 of 10, and use any you miss as the line you rehearse."}
+        {
+          "title": "How this works",
+          "body": "Answer each question. You see the reason straight away. Aim for 8 of 10, and use any you miss as the line you rehearse."
+        }
       ],
-      "weak": "", "strong": "",
-      "drill": {"type": "quiz", "title": "Ten-question quiz", "quiz": "biz_vocab"}
+      "weak": "",
+      "strong": "",
+      "drill": {
+        "type": "quiz",
+        "title": "Ten-question quiz",
+        "quiz": "biz_vocab"
+      }
     },
     {
-      "id": "strategic", "title": "Answer strategically, not operationally", "skill": "business_impact", "minutes": 10,
+      "id": "strategic",
+      "title": "Answer strategically, not operationally",
+      "skill": "business_impact",
+      "minutes": 10,
       "why": "“That's operational. Answer strategically.” Strategic answers diagnose before acting and end by measuring. Operational answers jump to the task list.",
       "steps": [
-        {"title": "Diagnose", "body": "What is really going on and why? Name the cause, not the symptom."},
-        {"title": "Analyse", "body": "What data would you look at? Name two numbers."},
-        {"title": "Recommend", "body": "One clear recommendation with the trade-off you accepted."},
-        {"title": "Implement", "body": "Who, what, by when. Keep it to three steps."},
-        {"title": "Measure", "body": "How you will know it worked: the metric and the target."}
+        {
+          "title": "Diagnose",
+          "body": "What is really going on and why? Name the cause, not the symptom."
+        },
+        {
+          "title": "Analyse",
+          "body": "What data would you look at? Name two numbers."
+        },
+        {
+          "title": "Recommend",
+          "body": "One clear recommendation with the trade-off you accepted."
+        },
+        {
+          "title": "Implement",
+          "body": "Who, what, by when. Keep it to three steps."
+        },
+        {
+          "title": "Measure",
+          "body": "How you will know it worked: the metric and the target."
+        }
       ],
       "weak": "I would post more jobs, use agencies and speed up interviews.",
       "strong": "Diagnosis: slow engineering hiring is a late-stage drop-off, not a sourcing gap. I'd check stage conversion and offer acceptance. I'd recommend a faster panel and a pay review for two roles. Within 6 weeks, target time to hire under 40 days and acceptance above 85%.",
-      "drill": {"type": "build", "title": "Answer a strategic question",
+      "drill": {
+        "type": "build",
+        "title": "Answer a strategic question",
         "prompt": "Question: “Engineering hiring is too slow and two key roles have been open for four months. What do you do?”",
         "fields": [
-          {"key": "diagnose", "label": "Diagnose", "hint": "What is the real cause?"},
-          {"key": "analyse", "label": "Analyse", "hint": "Which numbers would you check?", "needs_number": true},
-          {"key": "recommend", "label": "Recommend", "hint": "One recommendation and its trade-off."},
-          {"key": "implement", "label": "Implement", "hint": "Three steps, owners, dates.", "needs_number": true},
-          {"key": "measure", "label": "Measure", "hint": "Metric and target.", "needs_number": true}
-        ], "joiners": {"diagnose": "Diagnosis: ", "analyse": "I'd analyse ", "recommend": "I'd recommend ", "implement": "To implement: ", "measure": "I'd measure "}}
+          {
+            "key": "diagnose",
+            "label": "Diagnose",
+            "hint": "What is the real cause?"
+          },
+          {
+            "key": "analyse",
+            "label": "Analyse",
+            "hint": "Which numbers would you check?",
+            "needs_number": true
+          },
+          {
+            "key": "recommend",
+            "label": "Recommend",
+            "hint": "One recommendation and its trade-off."
+          },
+          {
+            "key": "implement",
+            "label": "Implement",
+            "hint": "Three steps, owners, dates.",
+            "needs_number": true
+          },
+          {
+            "key": "measure",
+            "label": "Measure",
+            "hint": "Metric and target.",
+            "needs_number": true
+          }
+        ],
+        "joiners": {
+          "diagnose": "Diagnosis: ",
+          "analyse": "I'd analyse ",
+          "recommend": "I'd recommend ",
+          "implement": "To implement: ",
+          "measure": "I'd measure "
+        }
+      }
     },
     {
-      "id": "pressure", "title": "Recover when you are interrupted", "skill": "structure", "minutes": 7,
+      "id": "pressure",
+      "title": "Recover when you are interrupted",
+      "skill": "structure",
+      "minutes": 7,
       "why": "“I'm not following” is not a verdict. It is a request for a headline. People who recover calmly are remembered. People who keep talking are not.",
       "steps": [
-        {"title": "Stop and breathe", "body": "Pause for one beat. Silence reads as control."},
-        {"title": "Bridge", "body": "“Let me give you the headline.” This resets the listener."},
-        {"title": "Headline with a number", "body": "One sentence, one figure. Then offer the detail: “Happy to go deeper on any of it.”"},
-        {"title": "Never defend, re-answer", "body": "Do not explain why you were unclear. Answer again, shorter."}
+        {
+          "title": "Stop and breathe",
+          "body": "Pause for one beat. Silence reads as control."
+        },
+        {
+          "title": "Bridge",
+          "body": "“Let me give you the headline.” This resets the listener."
+        },
+        {
+          "title": "Headline with a number",
+          "body": "One sentence, one figure. Then offer the detail: “Happy to go deeper on any of it.”"
+        },
+        {
+          "title": "Never defend, re-answer",
+          "body": "Do not explain why you were unclear. Answer again, shorter."
+        }
       ],
       "weak": "Well, what I was trying to say is that there were a lot of moving parts, and basically...",
       "strong": "Let me give you the headline: I cut time to hire from 62 to 38 days. I can go deeper on how.",
-      "drill": {"type": "build", "title": "Recover from “I'm not following”",
+      "drill": {
+        "type": "build",
+        "title": "Recover from “I'm not following”",
         "prompt": "You gave a long answer about {claim}. The interviewer says: “I'm not following.” Recover.",
         "fields": [
-          {"key": "bridge", "label": "Bridge", "hint": "Let me give you the headline..."},
-          {"key": "headline", "label": "Headline with a number", "hint": "One sentence, 25 words or fewer.", "max_words": 25, "needs_number": true},
-          {"key": "offer", "label": "Offer detail", "hint": "Happy to go deeper on..."}
-        ], "joiners": {"bridge": "", "headline": "", "offer": ""}}
+          {
+            "key": "bridge",
+            "label": "Bridge",
+            "hint": "Let me give you the headline..."
+          },
+          {
+            "key": "headline",
+            "label": "Headline with a number",
+            "hint": "One sentence, 25 words or fewer.",
+            "max_words": 25,
+            "needs_number": true
+          },
+          {
+            "key": "offer",
+            "label": "Offer detail",
+            "hint": "Happy to go deeper on..."
+          }
+        ],
+        "joiners": {
+          "bridge": "",
+          "headline": "",
+          "offer": ""
+        }
+      }
     },
     {
-      "id": "concise", "title": "Land it in a minute", "skill": "length", "minutes": 6,
+      "id": "concise",
+      "title": "Land it in a minute",
+      "skill": "length",
+      "minutes": 6,
       "why": "Over about 150 words, interviewers stop listening. Cutting is a skill, and the first thing to cut is context.",
       "steps": [
-        {"title": "Cut context first", "body": "They know your company. Start at the problem."},
-        {"title": "One example only", "body": "Pick the strongest. Offer another if asked."},
-        {"title": "Cut filler", "body": "Remove “basically”, “you know”, “kind of”, “sort of”. Pause instead."}
+        {
+          "title": "Cut context first",
+          "body": "They know your company. Start at the problem."
+        },
+        {
+          "title": "One example only",
+          "body": "Pick the strongest. Offer another if asked."
+        },
+        {
+          "title": "Cut filler",
+          "body": "Remove “basically”, “you know”, “kind of”, “sort of”. Pause instead."
+        }
       ],
-      "weak": "", "strong": "",
-      "drill": {"type": "build", "title": "One minute, one paragraph",
+      "weak": "",
+      "strong": "",
+      "drill": {
+        "type": "build",
+        "title": "One minute, one paragraph",
         "prompt": "Question: “Tell me about {claim}.” Answer in one paragraph of 150 words or fewer.",
-        "fields": [{"key": "answer", "label": "Your answer", "hint": "Headline, one example, the result. Under 150 words.", "max_words": 150, "min_words": 40, "needs_number": true, "rows": 8}],
-        "joiners": {"answer": ""}}
+        "fields": [
+          {
+            "key": "answer",
+            "label": "Your answer",
+            "hint": "Headline, one example, the result. Under 150 words.",
+            "max_words": 150,
+            "min_words": 40,
+            "needs_number": true,
+            "rows": 8
+          }
+        ],
+        "joiners": {
+          "answer": ""
+        }
+      }
+    },
+    {
+      "id": "tech_ta",
+      "title": "Talent acquisition technical check",
+      "skill": "business_impact",
+      "minutes": 6,
+      "why": "Technical interviewers test whether you know the mechanics behind your metrics. Eight questions on funnel, structure and quality.",
+      "steps": [
+        {
+          "title": "How this works",
+          "body": "Answer each question and read the reason. Missed ones are the topics to revise before the interview."
+        }
+      ],
+      "weak": "",
+      "strong": "",
+      "drill": {
+        "type": "quiz",
+        "title": "Eight-question technical check",
+        "quiz": "tech_ta"
+      }
+    },
+    {
+      "id": "english",
+      "title": "Precision in interview English",
+      "skill": "filler",
+      "minutes": 5,
+      "why": "Small language choices read as seniority or the opposite: active voice, concrete verbs, no hedging.",
+      "steps": [
+        {
+          "title": "How this works",
+          "body": "Eight questions on voice, tense, word choice and tone. Each answer shows why it is stronger."
+        }
+      ],
+      "weak": "",
+      "strong": "",
+      "drill": {
+        "type": "quiz",
+        "title": "Eight-question language check",
+        "quiz": "english"
+      }
+    },
+    {
+      "id": "salary",
+      "title": "Negotiate the offer",
+      "skill": "business_impact",
+      "minutes": 9,
+      "why": "Most people accept the first number or negotiate on feeling. Prepared candidates anchor with evidence and trade across the whole package.",
+      "steps": [
+        {
+          "title": "Know your range",
+          "body": "Market data, your impact and your alternatives. Walk in with a target, a stretch and a walk-away."
+        },
+        {
+          "title": "Anchor with a reason",
+          "body": "State a number slightly above target and tie it to results you will deliver."
+        },
+        {
+          "title": "Negotiate the package",
+          "body": "Base, bonus, equity, title, start date, flexibility. Trade what is cheap for them and valuable to you."
+        },
+        {
+          "title": "Use silence and close",
+          "body": "After you state a number, stop talking. Summarise the agreement in writing."
+        }
+      ],
+      "weak": "I was hoping for something around what I earn now, but I'm flexible.",
+      "strong": "Based on the scope and the 31% agency saving I delivered, I'm targeting 145 to 155 total. I'd like to discuss base and a performance bonus tied to time to hire.",
+      "drill": {
+        "type": "build",
+        "title": "Draft your negotiation opening",
+        "prompt": "The recruiter says: “We can offer 120. What are you expecting?” Use your own figures.",
+        "fields": [
+          {
+            "key": "anchor",
+            "label": "Your number and range",
+            "hint": "State a figure above target.",
+            "needs_number": true
+          },
+          {
+            "key": "reason",
+            "label": "Evidence for it",
+            "hint": "Results you will deliver, with numbers.",
+            "needs_number": true
+          },
+          {
+            "key": "package",
+            "label": "Package trade-offs",
+            "hint": "What else would you trade: bonus, equity, title, start date.",
+            "needs_number": false
+          },
+          {
+            "key": "close",
+            "label": "Close",
+            "hint": "Next step, said plainly."
+          }
+        ],
+        "joiners": {
+          "anchor": "Based on the scope, I'm targeting ",
+          "reason": "My case: ",
+          "package": "I'd also like to discuss ",
+          "close": "My next step: "
+        }
+      }
     }
   ]
 }

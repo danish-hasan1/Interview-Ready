@@ -1,11 +1,15 @@
 "use client";
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import { DIM, DIM_ORDER } from "@/lib/dims";
-import type { Profile } from "@/lib/types";
+import type { DebriefsData, Profile } from "@/lib/types";
 import { Sparkline } from "./charts";
 import { Btn, CountUp, PageHeader, RatingBar, itemV, listV } from "./ui";
 
 export default function Record({ profile, goPractice }: { profile: Profile | null; goPractice: () => void }) {
+  const [deb, setDeb] = useState<DebriefsData | null>(null);
+  useEffect(() => { api<DebriefsData>("/debriefs").then(setDeb).catch(() => {}); }, []);
   const has = !!profile && profile.sessions.length > 0;
   if (!has || !profile)
     return (
@@ -32,6 +36,15 @@ export default function Record({ profile, goPractice }: { profile: Profile | nul
           <div className="sheet p-4"><p className="label">Change vs previous</p>
             <p className={`mt-1 font-display text-3xl font-extrabold ${delta === null ? "" : delta >= 0 ? "text-solid" : "text-pen"}`}>{delta === null ? "—" : `${delta >= 0 ? "+" : ""}${delta}`}</p></div>
         </motion.div>
+
+        {deb && deb.stats.interviews > 0 && (
+          <motion.div variants={itemV} className="sheet flex flex-wrap items-center gap-8 p-5">
+            <div><p className="label">Real interviews</p><p className="font-display text-3xl font-extrabold">{deb.stats.interviews}</p></div>
+            <div><p className="label">Offers</p><p className="font-display text-3xl font-extrabold text-solid">{deb.stats.offers}</p></div>
+            <div><p className="label">Offer rate</p><p className="font-display text-3xl font-extrabold">{deb.stats.decided ? `${Math.round((deb.stats.offers / deb.stats.decided) * 100)}%` : "—"}</p></div>
+            <p className="max-w-xs text-sm text-muted">The metric that proves training works: interviews turning into offers.</p>
+          </motion.div>
+        )}
 
         <motion.div variants={itemV} className="sheet overflow-hidden">
           <p className="label p-4 pb-2">Dimensions, weakest first</p>

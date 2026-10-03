@@ -11,11 +11,13 @@ CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TE
 CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
 CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY, theme TEXT, title TEXT, fields TEXT, composed TEXT, score REAL, created TEXT, updated TEXT);
+CREATE TABLE IF NOT EXISTS debriefs (id INTEGER PRIMARY KEY, company TEXT, role TEXT, interview_date TEXT, outcome TEXT, notes TEXT, questions TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY, kind TEXT, question TEXT, text TEXT, approved INTEGER DEFAULT 0, created TEXT);
 CREATE TABLE IF NOT EXISTS training (id INTEGER PRIMARY KEY, lesson_id TEXT, score REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
-TABLES = ["documents", "claims", "sessions", "answers", "training", "library"]
+TABLES = ["documents", "claims", "sessions", "answers", "training", "library", "stories", "debriefs"]
 
 
 def _now():
@@ -33,9 +35,10 @@ def summarise(answers: list, sessions: list) -> dict:
             sd.setdefault(k, []).append(v)
         ref = a.get("ref") or ""
         if ref:
-            r = refs.setdefault(ref, {"attempts": 0, "last": 0, "best": 0})
+            r = refs.setdefault(ref, {"attempts": 0, "last": 0, "best": 0, "last_at": ""})
             r["attempts"] += 1
             r["last"] = a["total"]
+            r["last_at"] = str(a["created"])
             r["best"] = max(r["best"], a["total"])
     out = []
     for s in sessions:
@@ -143,6 +146,33 @@ class Store(BaseStore):
     def get_ownerships(self):
         return {r["text"]: r["ownership"] for r in self.conn.execute("SELECT text, ownership FROM claims")}
 
+    def list_stories(self):
+        return [{**dict(r), "fields": json.loads(r["fields"] or "{}")} for r in self.conn.execute("SELECT * FROM stories ORDER BY id")]
+
+    def save_story(self, story_id, theme, title, fields, composed, score):
+        if story_id:
+            self._q("UPDATE stories SET theme=?, title=?, fields=?, composed=?, score=?, updated=? WHERE id=?",
+                    (theme, title, json.dumps(fields), composed, score, _now(), story_id))
+            return story_id
+        return self._q("INSERT INTO stories(theme,title,fields,composed,score,created,updated) VALUES(?,?,?,?,?,?,?)",
+                       (theme, title, json.dumps(fields), composed, score, _now(), _now())).lastrowid
+
+    def delete_story(self, story_id):
+        self._q("DELETE FROM stories WHERE id=?", (story_id,))
+
+    def list_debriefs(self):
+        return [{**dict(r), "questions": json.loads(r["questions"] or "[]")} for r in self.conn.execute("SELECT * FROM debriefs ORDER BY id DESC")]
+
+    def add_debrief(self, company, role, interview_date, outcome, notes, questions):
+        return self._q("INSERT INTO debriefs(company,role,interview_date,outcome,notes,questions,created) VALUES(?,?,?,?,?,?,?)",
+                       (company, role, interview_date, outcome, notes, json.dumps(questions), _now())).lastrowid
+
+    def update_debrief(self, debrief_id, outcome, notes):
+        self._q("UPDATE debriefs SET outcome=?, notes=? WHERE id=?", (outcome, notes, debrief_id))
+
+    def delete_debrief(self, debrief_id):
+        self._q("DELETE FROM debriefs WHERE id=?", (debrief_id,))
+
     def add_library(self, kind, question, text):
         return self._q("INSERT INTO library(kind,question,text,approved,created) VALUES(?,?,?,0,?)", (kind, question, text, _now())).lastrowid
 
@@ -238,6 +268,32 @@ class SupabaseStore(BaseStore):
     def get_ownerships(self):
         return {r["text"]: r["ownership"] for r in self._req("GET", "claims", params={"select": "text,ownership"})}
 
+    def list_stories(self):
+        return self._req("GET", "stories", params={"order": "id"})
+
+    def save_story(self, story_id, theme, title, fields, composed, score):
+        body = {"theme": theme, "title": title, "fields": fields, "composed": composed, "score": score}
+        if story_id:
+            self._req("PATCH", "stories", params={"id": f"eq.{story_id}"}, json={**body, "updated": _now()})
+            return story_id
+        return self._req("POST", "stories", json=body)[0]["id"]
+
+    def delete_story(self, story_id):
+        self._req("DELETE", "stories", params={"id": f"eq.{story_id}"})
+
+    def list_debriefs(self):
+        return self._req("GET", "debriefs", params={"order": "id.desc"})
+
+    def add_debrief(self, company, role, interview_date, outcome, notes, questions):
+        return self._req("POST", "debriefs", json={"company": company, "role": role, "interview_date": interview_date or None,
+                                                    "outcome": outcome, "notes": notes, "questions": questions})[0]["id"]
+
+    def update_debrief(self, debrief_id, outcome, notes):
+        self._req("PATCH", "debriefs", params={"id": f"eq.{debrief_id}"}, json={"outcome": outcome, "notes": notes})
+
+    def delete_debrief(self, debrief_id):
+        self._req("DELETE", "debriefs", params={"id": f"eq.{debrief_id}"})
+
     def add_library(self, kind, question, text):
         return self._req("POST", "library", json={"kind": kind, "question": question, "text": text, "approved": False})[0]["id"]
 
@@ -264,5 +320,5 @@ class SupabaseStore(BaseStore):
         return {t: self._req("GET", t) for t in TABLES}
 
     def delete_all(self):
-        for t in ["library", "training", "answers", "sessions", "claims", "documents"]:
+        for t in ["debriefs", "stories", "library", "training", "answers", "sessions", "claims", "documents"]:
             self._req("DELETE", t, params={"id": "gt.0"})

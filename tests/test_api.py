@@ -108,3 +108,71 @@ def test_ownership_persists_and_library_first_coach(monkeypatch):
     assert r2["coach"] == {"text": "Lead with the number.", "source": "library"}
     c.delete(f"/api/library/{item['id']}")
     assert all(i["id"] != item["id"] for i in c.get("/api/library").json()["items"])
+
+
+def test_stories_debriefs_brief_personas_pressure():
+    c = client()
+    body = c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD}).json()
+
+    fields = {"context": "In 2023 at Acme", "problem": "Agency spend 40% over budget", "action": "I cut suppliers from 14 to 3",
+              "result": "Spend fell 31%", "impact": "Saved $380k a year"}
+    saved = c.post("/api/stories", json={"theme": "commercial", "title": "Agency consolidation", "fields": fields}).json()
+    assert saved["check"]["ready"]
+    s = c.get("/api/stories").json()
+    assert s["coverage"]["core_ready"] == 1 and s["stories"][0]["title"] == "Agency consolidation"
+    c.post("/api/stories", json={"id": saved["id"], "theme": "commercial", "title": "Renamed", "fields": fields})
+    assert c.get("/api/stories").json()["stories"][0]["title"] == "Renamed"
+    assert c.post("/api/stories/check", json={"theme": "nope", "fields": {}}).status_code == 404
+    c.delete(f"/api/stories/{saved['id']}")
+    assert c.get("/api/stories").json()["stories"] == []
+
+    d = c.post("/api/debriefs", json={"company": "Acme", "role": "Head of TA", "questions": [{"question": "Walk me through your P&L", "struggled": True}]}).json()
+    c.post(f"/api/debriefs/{d['id']}/outcome", json={"outcome": "offer"})
+    ds = c.get("/api/debriefs").json()
+    assert ds["stats"] == {"interviews": 1, "offers": 1, "decided": 1} and ds["items"][0]["questions"][0]["struggled"]
+    assert c.post(f"/api/debriefs/{d['id']}/outcome", json={"outcome": "bad"}).status_code == 400
+
+    start = c.post("/api/interview/start", json={"claims": body["claims"], "gap_items": body["gap_items"], "persona": "aggressive"}).json()
+    assert start["state"]["max_followups"] == 2 and start["state"]["persona"] == "aggressive"
+    r = c.post("/api/interview/answer", json={"session_id": start["session_id"], "state": start["state"], "answer": "We did some things."}).json()
+    assert r["state"]["current"]["kind"] == "followup"
+    assert r["state"]["current"]["question"] in ("Stop. I've lost you. Thirty seconds.", "That was 'we' again. What did YOU do?") or "Numbers" in r["state"]["current"]["question"] or "one sentence" in r["state"]["current"]["question"].lower() or "vague" in r["state"]["current"]["question"].lower() or "So what" in r["state"]["current"]["question"]
+    assert any(p["id"] == "ceo" for p in c.get("/api/personas").json()["personas"])
+
+    pr = c.get("/api/drills/pressure").json()["rounds"]
+    assert len(pr) == 6 and pr[0]["claim"]
+    ok = c.post("/api/training/check", json={"kind": "pressure", "lesson_id": "no_numbers", "text": "Cut time to hire by 39%."}).json()
+    bad = c.post("/api/training/check", json={"kind": "pressure", "lesson_id": "no_numbers", "text": "A lot, honestly."}).json()
+    assert ok["pass"] and not bad["pass"]
+
+    b = c.get("/api/interview-brief").json()
+    assert b["has_cv"] and b["claims_to_defend"] and b["likely_questions"] and b["pitch"]["draft"] and b["ask_them"]
+    t = c.get("/api/training").json()
+    assert "resources" in t and any(l["id"] == "salary" for l in t["lessons"])
+    assert c.get("/api/voice").json() == {"available": False} or c.get("/api/voice").json()["available"] in (True, False)
+
+
+def test_spaced_repetition_due_items():
+    from datetime import datetime, timedelta, timezone
+    from interview_ready.spaced import due_items
+    now = datetime(2026, 10, 10, tzinfo=timezone.utc)
+    refs = {
+        "shaky recent": {"attempts": 2, "last": 4, "best": 4, "last_at": (now - timedelta(days=3)).isoformat()},
+        "shaky fresh": {"attempts": 1, "last": 4, "best": 4, "last_at": now.isoformat()},
+        "solid recent": {"attempts": 1, "last": 9, "best": 9, "last_at": (now - timedelta(days=1)).isoformat()},
+        "solid old": {"attempts": 1, "last": 9, "best": 9, "last_at": (now - timedelta(days=5)).isoformat()},
+    }
+    due = {d["ref"]: d for d in due_items(refs, now)}
+    assert "shaky recent" in due and "solid old" in due
+    assert "solid recent" not in due
+    assert due["shaky fresh"]["state"] == "shaky"  # 0-day interval: shaky items are due immediately
+    assert list(due)[0].startswith("shaky")
+
+
+def test_speech_metrics_pure():
+    from interview_ready.speech import coaching, speech_metrics
+    words = [{"word": "So", "start": 0, "end": 0.3}, {"word": "um", "start": 0.4, "end": 0.6}, {"word": "we", "start": 2.5, "end": 2.7},
+             {"word": "cut", "start": 2.8, "end": 3.0}]
+    m = speech_metrics(words)
+    assert m["pause_count"] == 1 and m["fillers"] == {"um": 1} and m["words"] == 4
+    assert any("Filler" in x for x in coaching(m))

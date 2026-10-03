@@ -19,10 +19,13 @@ npm run dev                                    # terminal 2 -> http://localhost:
 ```
 
 ## Deploy (Vercel + Supabase), single owner, no login
-1. Run `supabase/migrations/0001_init.sql`, then `0002_answer_ref.sql`, then `0003_training.sql` and `0004_library.sql`, in the Supabase SQL editor.
+1. Run `supabase/migrations/0001_init.sql`, then `0002_answer_ref.sql`, then `0003_training.sql`, `0004_library.sql` and `0005_stories_debriefs.sql`, in the Supabase SQL editor.
 2. Vercel env vars (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
 3. Import the GitHub repo in Vercel. Framework: Next.js. `vercel.ts` routes `/api/*` to the Python function.
 4. **Turn on Vercel Deployment Protection** (Project Settings -> Deployment Protection). The app has no login, so this is what keeps your CV private.
+
+## Voice answers (local only)
+`pip install -r requirements-voice.txt` (faster-whisper, tiny English model downloads on first use). The Practice screen then shows "Answer by voice". Audio is transcribed in memory on your machine and never stored. Not available on Vercel.
 
 ## Optional local model (off by default)
 Rules score every answer. To add a one-line coach note from a local model: `ollama pull llama3.2`, then run the API with `INTERVIEW_READY_LLM=ollama`.
