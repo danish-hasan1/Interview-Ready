@@ -251,7 +251,7 @@ function Assessment({ score, refText, state, coach, question }: { score: Score; 
       </ul>
       {coach && (
         <div className="mt-3 rounded-md border-l-[3px] border-blue bg-blue/5 p-3 text-sm">
-          <p className="label mb-1 !text-blue">Coach note · {coach.source === "library" ? "from your library" : "local model"}</p>
+          <p className="label mb-1 !text-blue">Coach note · {coach.source === "library" ? "from your library" : "AI-written"}</p>
           <p>{coach.text}</p>
           {coach.source === "model" && (
             <button disabled={saved} onClick={() => post("/library", { kind: "feedback", question, text: coach.text }).then(() => setSaved(true))}

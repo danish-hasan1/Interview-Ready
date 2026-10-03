@@ -1,8 +1,10 @@
 "use client";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import type { CvReview as Data } from "@/lib/types";
+import { api, post } from "@/lib/api";
+import { useAi } from "@/lib/useAi";
+import type { AiReview, CvReview as Data, CvVersion } from "@/lib/types";
+import AiConsent from "./AiConsent";
 import { Btn, CountUp, PageHeader, RatingBar, itemV, listV } from "./ui";
 
 const CAT: Record<string, { label: string; hint: string }> = {
@@ -19,10 +21,13 @@ const LESSON_TITLE: Record<string, string> = {
   pl_fluency: "Speak P&L like an operator", biz_vocab: "Business vocabulary", strategic: "Answer strategically", pressure: "Recover when interrupted", concise: "Land it in a minute",
 };
 
-export default function CvReview({ refreshKey, goBrief, onTrain }: { refreshKey: unknown; goBrief: () => void; onTrain: (lessonId?: string) => void }) {
+export default function CvReview({ refreshKey, onAnalysed, onTrain, onPractise }: {
+  refreshKey: unknown; onAnalysed: () => void; onTrain: (lessonId?: string) => void; onPractise: (qs: { question: string; ref: string }[]) => void;
+}) {
   const [d, setD] = useState<Data | null>(null);
   const [err, setErr] = useState("");
-  useEffect(() => { api<Data>("/cv-review").then(setD).catch((e) => setErr(e.message)); }, [refreshKey]);
+  const [tick, setTick] = useState(0);
+  useEffect(() => { api<Data>("/cv-review").then(setD).catch((e) => setErr(e.message)); }, [refreshKey, tick]);
 
   if (err) return <p role="alert" className="text-pen">{err}</p>;
   if (!d) return null;
@@ -30,8 +35,8 @@ export default function CvReview({ refreshKey, goBrief, onTrain }: { refreshKey:
     return (
       <>
         <PageHeader title="CV review" />
-        <div className="sheet p-8"><p className="max-w-md text-muted">Upload your CV and the review shows how it reads before anyone interviews you: numbers, ownership, results and commercial language.</p>
-          <Btn className="mt-4" onClick={goBrief}>Upload your CV</Btn></div>
+        <div className="sheet p-8"><p className="mb-4 max-w-md text-muted">Upload your CV and the review shows how it reads before anyone interviews you: numbers, ownership, results and commercial language.</p>
+          <CvUploader onDone={() => { setTick((x) => x + 1); onAnalysed(); }} /></div>
       </>
     );
 
@@ -45,6 +50,12 @@ export default function CvReview({ refreshKey, goBrief, onTrain }: { refreshKey:
       </PageHeader>
 
       <motion.div variants={listV} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={itemV} className="sheet flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="min-w-0"><p className="label">Reviewing</p><p className="truncate font-display font-bold">{d.versions[d.versions.length - 1]?.name ?? "Your CV"}</p>
+            {d.versions.length > 1 && <p className="label mt-1">Versions: {d.versions.map((v: CvVersion) => `${v.name} ${v.score}`).join("  →  ")}</p>}</div>
+          <CvUploader label="Replace with a new version" onDone={() => { setTick((x) => x + 1); onAnalysed(); }} />
+        </motion.div>
+        <AiPanel onPractise={onPractise} />
         <motion.div variants={itemV} className="sheet grid gap-6 p-6 md:grid-cols-[200px_minmax(0,1fr)]">
           <div>
             <p className="label">CV score</p>
@@ -106,5 +117,91 @@ export default function CvReview({ refreshKey, goBrief, onTrain }: { refreshKey:
         )}
       </motion.div>
     </section>
+  );
+}
+
+
+function CvUploader({ onDone, label = "Upload your CV" }: { onDone: () => void; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function send(file: File) {
+    setBusy(true); setErr("");
+    try { const fd = new FormData(); fd.append("cv", file); await api("/analyze", { method: "POST", body: fd }); onDone(); }
+    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <span className="flex flex-col items-start gap-1">
+      <label className="btn btn-ghost cursor-pointer">
+        <input className="sr-only" type="file" accept=".pdf,.docx,.txt,.md" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) send(f); e.target.value = ""; }} />
+        {busy ? "Reading…" : label}
+      </label>
+      <span className="label">PDF, DOCX or TXT · up to 4 MB</span>
+      {err && <span role="alert" className="text-sm text-pen">{err}</span>}
+    </span>
+  );
+}
+
+function AiPanel({ onPractise }: { onPractise: (qs: { question: string; ref: string }[]) => void }) {
+  const { ai, refresh, on } = useAi();
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [res, setRes] = useState<AiReview | null>(null);
+  const [qs, setQs] = useState<{ question: string; ref: string }[] | null>(null);
+  const [err, setErr] = useState("");
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  if (!ai) return null;
+
+  async function run(kind: "review" | "questions") {
+    setBusy(kind); setErr("");
+    try {
+      if (kind === "review") setRes(await post<AiReview>("/ai/cv-review", {}));
+      else setQs((await post<{ questions: { question: string; ref: string }[] }>("/ai/questions", {})).questions);
+      refresh();
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(""); }
+  }
+
+  if (!ai.configured)
+    return <div className="sheet p-4 text-sm text-muted"><span className="label mr-2">AI</span>Off. Add <code className="font-mono">GROQ_API_KEY</code> to <code className="font-mono">.env.local</code> and restart the API to enable AI suggestions. Rule-based review works without it.</div>;
+  if (consent) return <AiConsent ai={ai} onDone={() => { setConsent(false); refresh(); }} onCancel={() => setConsent(false)} />;
+  if (!ai.enabled || !ai.consent)
+    return <div className="sheet flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-sm"><span className="label mr-2">AI</span>Add a second opinion: seniority read, rewrites that must beat the rule score, and the questions an interviewer would ask.</p><Btn onClick={() => setConsent(true)}>Set up AI</Btn></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="sheet flex flex-wrap items-center justify-between gap-3 border-l-[3px] border-l-blue p-4">
+        <p className="text-sm"><span className="label mr-2 !text-blue">AI on</span>Redacted text goes to {ai.provider}. Suggestions are AI-written: check every line.</p>
+        <div className="flex gap-2">
+          {on("cv_review") && <Btn disabled={!!busy} onClick={() => run("review")}>{busy === "review" ? "Reviewing…" : "Run AI review"}</Btn>}
+          {on("questions") && <Btn variant="ghost" disabled={!!busy} onClick={() => run("questions")}>{busy === "questions" ? "Writing…" : "Hard questions"}</Btn>}
+        </div>
+      </div>
+      {err && <p role="alert" className="text-sm font-medium text-pen">{err}</p>}
+
+      {qs && (
+        <div className="sheet p-5">
+          <p className="label mb-3">AI-written interview questions from your CV and the role</p>
+          <ul className="space-y-2 text-sm">{qs.map((q) => <li key={q.question} className="border-l-2 border-blue/60 pl-3"><p>{q.question}</p><p className="label mt-0.5">About: {q.ref}</p></li>)}</ul>
+          <Btn className="mt-4" onClick={() => onPractise(qs)}>Practise these {qs.length}</Btn>
+        </div>
+      )}
+
+      {res && (
+        <div className="sheet space-y-5 p-5">
+          <div><p className="label mb-1 !text-blue">AI read · seniority</p><p className="font-display text-lg font-bold">{res.seniority}</p><p className="mt-1 text-sm text-muted">{res.summary}</p></div>
+          {res.risks.length > 0 && <div><p className="label mb-2">What an interviewer will distrust</p><ul className="space-y-1 text-sm">{res.risks.map((r) => <li key={r} className="border-l-2 border-pen/60 pl-3">{r}</li>)}</ul></div>}
+          {res.rewrites.length > 0 && (
+            <div><p className="label mb-2">Rewrites that beat the rule score</p>
+              <ul className="space-y-3">{res.rewrites.map((w) => (
+                <li key={w.original} className="rounded-md border border-line p-3 text-sm">
+                  <p className="text-muted line-through">{w.original}</p><p className="mt-1 font-medium">{w.rewrite}</p>
+                  <p className="label mt-1">{w.before} → {w.after}{w.needs_figure ? " · fill the [bracketed] figure from your own records" : ""} · {w.why}</p>
+                  <button disabled={saved[w.original]} className="label mt-1 underline hover:text-ink" onClick={() => post("/library", { kind: "cv_rewrite", question: w.original, text: w.rewrite }).then(() => setSaved({ ...saved, [w.original]: true }))}>{saved[w.original] ? "Saved to library" : "Save to library"}</button>
+                </li>))}</ul></div>
+          )}
+          {res.missing_evidence.length > 0 && <div><p className="label mb-2">Missing evidence for the role</p><ul className="space-y-1 text-sm">{res.missing_evidence.map((m) => <li key={m}>– {m}</li>)}</ul></div>}
+          <p className="label">Contact details removed before sending · {Object.values(res.redacted).reduce((a, b) => a + b, 0)} items{res.dropped ? ` · ${res.dropped} unusable AI rewrite${res.dropped > 1 ? "s" : ""} discarded` : ""}</p>
+        </div>
+      )}
+    </div>
   );
 }

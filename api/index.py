@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile  # n
 from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
-from interview_ready import config  # noqa: E402
+from interview_ready import ai as ai_layer, config  # noqa: E402
 from interview_ready.coach import coach_note  # noqa: E402
 from interview_ready.cv_analysis import analyse_cv
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
@@ -205,7 +205,9 @@ def cv_review(store=Depends(get_store)):
     if not cv_text:
         return {"has_cv": False}
     review = analyse_cv(cv_text)
-    return {"has_cv": True, "review": review, "plan": training.build_plan(review, gaps, store.profile())}
+    versions = [{"id": d["id"], "name": d.get("name") or "CV", "created": str(d["created"]), "score": analyse_cv(d["text"])["score"]}
+                for d in store.list_documents("cv")]
+    return {"has_cv": True, "review": review, "plan": training.build_plan(review, gaps, store.profile()), "versions": versions}
 
 
 @app.get("/api/training")
@@ -249,8 +251,12 @@ def training_complete(body: CompleteIn, store=Depends(get_store)):
     return {"progress": store.training_progress()}
 
 
-def _provider():
-    """None when the model layer is off (default and always on Vercel)."""
+def _provider(store=None):
+    """Groq when opted in for coaching, else local Ollama, else None (rules only)."""
+    if store is not None:
+        p = ai_layer.provider_for(store, "coaching")
+        if p:
+            return p
     if config.LLM_BACKEND == "off":
         return None
     try:
@@ -265,9 +271,76 @@ def store_cache():
 
 def _coach(store, question, answer, score):
     try:
-        return coach_note(question, answer, score.dims, score.fixes, store, _provider())
+        return coach_note(question, answer, score.dims, score.fixes, store, _provider(store))
     except Exception:  # model problems must never break scoring
         return None
+
+
+class AiSettingsIn(BaseModel):
+    enabled: bool
+    consent: bool = False
+    features: dict | None = None
+
+
+class StoryTightenIn(BaseModel):
+    theme: str
+    fields: dict
+
+
+def _ai_guard(fn):
+    """Map AI-layer failures to clear HTTP errors. Never echo content."""
+    try:
+        return fn()
+    except ai_layer.AIDisabled as e:
+        raise HTTPException(403, str(e))
+    except ai_layer.AILimit as e:
+        raise HTTPException(429, str(e))
+    except ai_layer.AIBadOutput as e:
+        raise HTTPException(502, f"The AI reply could not be used ({e}). Try again; your rule-based results are unaffected.")
+    except LLMUnavailable as e:
+        raise HTTPException(503, str(e))
+    except KeyError:
+        raise HTTPException(404, "Unknown item")
+
+
+@app.get("/api/ai")
+def ai_status(store=Depends(get_store)):
+    return ai_layer.status(store)
+
+
+@app.post("/api/ai/settings")
+def ai_settings(body: AiSettingsIn, store=Depends(get_store)):
+    return _ai_guard(lambda: ai_layer.save_settings(store, body.enabled, body.consent, body.features))
+
+
+@app.get("/api/ai/preview")
+def ai_preview(store=Depends(get_store)):
+    cv_text, _ = _context(store)
+    if not cv_text:
+        raise HTTPException(400, "Upload a CV first")
+    r = ai_layer.preview(cv_text)
+    return {"text": r["text"], "removed": r["removed"], "total": r["total"]}
+
+
+@app.post("/api/ai/cv-review")
+def ai_cv_review_ep(store=Depends(get_store)):
+    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    if not cv:
+        raise HTTPException(400, "Upload a CV first")
+    return _ai_guard(lambda: ai_layer.ai_cv_review(store, cv["text"], jd["text"] if jd else ""))
+
+
+@app.post("/api/ai/questions")
+def ai_questions_ep(store=Depends(get_store)):
+    cv, jd = store.latest_document("cv"), store.latest_document("jd")
+    if not cv:
+        raise HTTPException(400, "Upload a CV first")
+    return {"questions": _ai_guard(lambda: ai_layer.ai_questions(store, cv["text"], jd["text"] if jd else ""))}
+
+
+@app.post("/api/ai/story-tighten")
+def ai_story_ep(body: StoryTightenIn, store=Depends(get_store)):
+    return _ai_guard(lambda: ai_layer.ai_tighten_story(store, body.theme, body.fields))
 
 
 @app.get("/api/llm")

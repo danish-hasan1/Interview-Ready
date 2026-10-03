@@ -35,12 +35,13 @@ export default function App() {
 
   const refresh = useCallback(() => { api<Profile>("/profile").then(setProfile).catch(() => {}); }, []);
 
-  useEffect(() => {
-    refresh();
+  const reloadWorkspace = useCallback(() => {
     api<Workspace>("/workspace").then((w) => {
       if (w.has_cv) setAnalysis({ claims: w.claims, gaps: w.gaps, gap_items: w.gap_items, cv_name: w.cv_name });
     }).catch(() => {});
-  }, [refresh]);
+  }, []);
+
+  useEffect(() => { refresh(); reloadWorkspace(); }, [refresh, reloadWorkspace]);
 
   const startDrill = (r: DrillRequest) => { setDrill({ ...r, id: Date.now() }); setPage("practice"); };
 
@@ -72,7 +73,7 @@ export default function App() {
         {page !== "practice" && <motion.main key={page} className="mx-auto w-full max-w-5xl px-5 py-8 pb-24"
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
           {page === "board" && <Brief analysis={analysis} setAnalysis={setAnalysis} notes={notes} setNotes={setNotes} profile={profile} onDrill={startDrill} goTo={(p) => { setLessonId(null); setPage(p); }} />}
-          {page === "review" && <CvReview refreshKey={analysis} goBrief={() => setPage("board")} onTrain={(id) => { setLessonId(id ?? null); setPage("train"); }} />}
+          {page === "review" && <CvReview refreshKey={analysis} onAnalysed={reloadWorkspace} onTrain={(id) => { setLessonId(id ?? null); setPage("train"); }} onPractise={(qs) => startDrill({ custom: qs })} />}
           {page === "train" && <Train initialLesson={lessonId} goBrief={() => setPage("board")} goPractice={() => setPage("practice")} onChanged={refresh} />}
           {page === "stories" && <Stories />}
           {page === "debrief" && <Debrief onPractise={(qs) => startDrill({ custom: qs })} />}

@@ -39,7 +39,7 @@ export type CvReviewData = {
   stats: { lines: number; quantified: number; strong_verbs: number; weak_phrases: number; words: number; impact_terms: string[]; sections: Record<string, boolean> };
 };
 export type PlanItem = { lesson_id: string; reason: string; priority: number; title: string; minutes: number };
-export type CvReview = { has_cv: false } | { has_cv: true; review: CvReviewData; plan: PlanItem[] };
+export type CvReview = { has_cv: false } | { has_cv: true; review: CvReviewData; plan: PlanItem[]; versions: CvVersion[] };
 
 export type DrillField = { key: string; label: string; hint: string; max_words?: number; min_words?: number; needs_number?: boolean; rows?: number };
 export type Drill =
@@ -80,3 +80,8 @@ export type BriefData = {
   pitch: { structure: string[]; draft: string };
   focus: { weakest: [string, number][]; due_now: number };
 };
+
+export type AiStatus = { configured: boolean; enabled: boolean; consent: boolean; features: Record<string, boolean>; used_today: number; cap: number | null; provider: string; model: string };
+export type AiRewrite = { original: string; rewrite: string; why: string; before: number; after: number; needs_figure: boolean };
+export type AiReview = { seniority: string; summary: string; risks: string[]; rewrites: AiRewrite[]; hard_questions: string[]; missing_evidence: string[]; redacted: Record<string, number>; dropped: number };
+export type CvVersion = { id: number; name: string; created: string; score: number };

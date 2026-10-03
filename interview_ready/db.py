@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TE
 CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
 CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS ai_usage (day TEXT PRIMARY KEY, count INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY, theme TEXT, title TEXT, fields TEXT, composed TEXT, score REAL, created TEXT, updated TEXT);
 CREATE TABLE IF NOT EXISTS debriefs (id INTEGER PRIMARY KEY, company TEXT, role TEXT, interview_date TEXT, outcome TEXT, notes TEXT, questions TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY, kind TEXT, question TEXT, text TEXT, approved INTEGER DEFAULT 0, created TEXT);
@@ -146,6 +148,23 @@ class Store(BaseStore):
     def get_ownerships(self):
         return {r["text"]: r["ownership"] for r in self.conn.execute("SELECT text, ownership FROM claims")}
 
+    def list_documents(self, kind):
+        return [dict(r) for r in self.conn.execute("SELECT id, name, text, created FROM documents WHERE kind=? ORDER BY id", (kind,))]
+
+    def get_setting(self, key, default=None):
+        r = self.conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return json.loads(r["value"]) if r else default
+
+    def set_setting(self, key, value):
+        self._q("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", (key, json.dumps(value)))
+
+    def usage_today(self, day):
+        r = self.conn.execute("SELECT count FROM ai_usage WHERE day=?", (day,)).fetchone()
+        return r["count"] if r else 0
+
+    def incr_usage(self, day):
+        self._q("INSERT INTO ai_usage(day,count) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET count=count+1", (day,))
+
     def list_stories(self):
         return [{**dict(r), "fields": json.loads(r["fields"] or "{}")} for r in self.conn.execute("SELECT * FROM stories ORDER BY id")]
 
@@ -207,7 +226,7 @@ class Store(BaseStore):
         return {t: [dict(r) for r in self.conn.execute(f"SELECT * FROM {t}")] for t in TABLES}
 
     def delete_all(self):
-        for t in TABLES + ["llm_cache"]:
+        for t in TABLES + ["llm_cache", "settings"]:  # ai_usage is kept so the daily cap cannot be reset by deleting data
             self.conn.execute(f"DELETE FROM {t}")
         self.conn.commit()
 
@@ -268,6 +287,34 @@ class SupabaseStore(BaseStore):
     def get_ownerships(self):
         return {r["text"]: r["ownership"] for r in self._req("GET", "claims", params={"select": "text,ownership"})}
 
+    def list_documents(self, kind):
+        return self._req("GET", "documents", params={"kind": f"eq.{kind}", "select": "id,name,text,created", "order": "id"})
+
+    def get_setting(self, key, default=None):
+        rows = self._req("GET", "settings", params={"key": f"eq.{key}"})
+        return rows[0]["value"] if rows else default
+
+    def set_setting(self, key, value):
+        self.http.post("/settings", json={"key": key, "value": value},
+                       headers={"Prefer": "resolution=merge-duplicates,return=minimal"}).raise_for_status()
+
+    def usage_today(self, day):
+        rows = self._req("GET", "ai_usage", params={"day": f"eq.{day}"})
+        return rows[0]["count"] if rows else 0
+
+    def incr_usage(self, day):
+        n = self.usage_today(day) + 1
+        self.http.post("/ai_usage", json={"day": day, "count": n},
+                       headers={"Prefer": "resolution=merge-duplicates,return=minimal"}).raise_for_status()
+
+    def get(self, key):
+        rows = self._req("GET", "llm_cache", params={"key": f"eq.{key}"})
+        return rows[0]["value"] if rows else None
+
+    def put(self, key, value):
+        self.http.post("/llm_cache", json={"key": key, "value": value},
+                       headers={"Prefer": "resolution=merge-duplicates,return=minimal"}).raise_for_status()
+
     def list_stories(self):
         return self._req("GET", "stories", params={"order": "id"})
 
@@ -322,3 +369,5 @@ class SupabaseStore(BaseStore):
     def delete_all(self):
         for t in ["debriefs", "stories", "library", "training", "answers", "sessions", "claims", "documents"]:
             self._req("DELETE", t, params={"id": "gt.0"})
+        self._req("DELETE", "settings", params={"key": "neq."})
+        self._req("DELETE", "llm_cache", params={"key": "neq."})

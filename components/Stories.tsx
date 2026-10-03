@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "@/lib/api";
 import { DIM, DIM_ORDER } from "@/lib/dims";
+import { useAi } from "@/lib/useAi";
 import type { StoriesData, Story, StoryCheck } from "@/lib/types";
 import { Btn, PageHeader, RatingBar, Stamp, itemV, listV } from "./ui";
 
@@ -71,6 +72,14 @@ function Editor({ d, theme, story, back }: { d: StoriesData; theme: string; stor
   const [res, setRes] = useState<StoryCheck | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const { on } = useAi();
+  const [sugg, setSugg] = useState<{ fields: Record<string, string>; note: string; before: number; after: number; better: boolean } | null>(null);
+
+  async function tighten() {
+    setBusy(true); setErr("");
+    try { setSugg(await post("/ai/story-tighten", { theme, fields: vals })); }
+    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
 
   async function save() {
     setBusy(true); setErr("");
@@ -109,10 +118,19 @@ function Editor({ d, theme, story, back }: { d: StoriesData; theme: string; stor
         })}
         <div className="flex flex-wrap items-center gap-3">
           <Btn disabled={busy} variant="ghost" onClick={check}>Check</Btn>
+          {on("story") && <Btn disabled={busy} variant="ghost" onClick={tighten}>Tighten with AI</Btn>}
           <Btn disabled={busy} onClick={save}>{story ? "Save changes" : "Save to story bank"}</Btn>
           {story && <button onClick={remove} className="label underline hover:text-pen">Delete story</button>}
           {err && <p role="alert" className="text-sm font-medium text-pen">{err}</p>}
         </div>
+        {sugg && (
+          <div className="rounded-md border-l-[3px] border-blue bg-blue/5 p-4 text-sm">
+            <p className="label mb-2 !text-blue">AI suggestion · score {sugg.before} → {sugg.after}{sugg.better ? "" : " (not better, so ignore it)"}</p>
+            <p className="mb-2 text-muted">{sugg.note}</p>
+            <ul className="space-y-1.5">{d.themes.fields.map((f) => <li key={f.key}><span className="label mr-2">{f.label}</span>{sugg.fields[f.key]}</li>)}</ul>
+            <div className="mt-3 flex gap-3"><Btn onClick={() => { setVals({ ...vals, ...sugg.fields }); setSugg(null); setRes(null); }}>Use this version</Btn><Btn variant="ghost" onClick={() => setSugg(null)}>Dismiss</Btn></div>
+          </div>
+        )}
         {res && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 border-t border-line pt-4">
             <div className="flex items-center justify-between"><p className="label">Assessment of the story as you would tell it</p>

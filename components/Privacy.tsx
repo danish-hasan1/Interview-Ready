@@ -1,7 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "@/lib/api";
+import { useAi } from "@/lib/useAi";
 import type { LibraryItem } from "@/lib/types";
+import AiConsent from "./AiConsent";
 import { Btn, PageHeader } from "./ui";
 
 const POINTS = [
@@ -15,6 +17,8 @@ export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
   const [sure, setSure] = useState(false);
   const [msg, setMsg] = useState("");
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const { ai, refresh } = useAi();
+  const [setup, setSetup] = useState(false);
   const load = useCallback(() => api<{ items: LibraryItem[] }>("/library").then((r) => setItems(r.items)).catch(() => {}), []);
   useEffect(() => { load(); }, [load]);
 
@@ -36,6 +40,20 @@ export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
       <ul className="sheet divide-y divide-line">
         {POINTS.map(([t, d]) => <li key={t} className="p-4"><p className="font-display font-bold">{t}</p><p className="text-sm text-muted">{d}</p></li>)}
       </ul>
+      <div className="mt-5">
+        {ai && setup ? <AiConsent ai={ai} onDone={() => { setSetup(false); refresh(); }} onCancel={() => setSetup(false)} /> : (
+          <div className="sheet p-5">
+            <p className="label mb-1">AI assistance</p>
+            {!ai?.configured ? <p className="text-sm text-muted">Off. No key is configured, so nothing is sent anywhere.</p> : ai.enabled && ai.consent ? (
+              <div className="space-y-3 text-sm">
+                <p>On. Redacted text goes to {ai.provider} ({ai.model}). Used today: <b>{ai.used_today}</b>{ai.cap ? ` of ${ai.cap}` : " (no daily cap)"}.</p>
+                <p className="text-muted">Features: {Object.entries(ai.features).filter(([, v]) => v).map(([k]) => k.replace("_", " ")).join(", ") || "none"}</p>
+                <div className="flex gap-2"><Btn variant="ghost" onClick={() => setSetup(true)}>Change features</Btn><Btn variant="ghost" onClick={() => post("/ai/settings", { enabled: false, consent: true }).then(refresh)}>Turn AI off</Btn></div>
+              </div>
+            ) : (<div className="space-y-3"><p className="text-sm text-muted">A key is configured but AI is off. Nothing is sent until you opt in.</p><Btn onClick={() => setSetup(true)}>Set up AI</Btn></div>)}
+          </div>
+        )}
+      </div>
       <div className="sheet mt-5 p-5">
         <p className="label mb-1">Coach library</p>
         <p className="mb-3 text-sm text-muted">Notes saved from the local model. Approve the ones worth keeping: approved notes are served instantly next time the same question comes up, so the model is needed less.</p>

@@ -176,3 +176,41 @@ def test_speech_metrics_pure():
     m = speech_metrics(words)
     assert m["pause_count"] == 1 and m["fillers"] == {"um": 1} and m["words"] == 4
     assert any("Filler" in x for x in coaching(m))
+
+
+def test_ai_endpoints_gating_and_flow(monkeypatch):
+    from interview_ready import ai as ai_layer
+    from interview_ready.llm_provider import LLMProvider
+
+    c = client()
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD})
+    assert c.get("/api/ai").json()["configured"] is False
+    assert c.post("/api/ai/settings", json={"enabled": True, "consent": False}).status_code == 403
+    assert c.post("/api/ai/cv-review").status_code == 403  # not enabled
+
+    prev = c.get("/api/ai/preview").json()
+    assert "text" in prev and prev["total"] >= 0
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    st = c.post("/api/ai/settings", json={"enabled": True, "consent": True, "features": {"coaching": False}}).json()
+    assert st["enabled"] and st["configured"] and st["features"]["coaching"] is False
+
+    class Fake(LLMProvider):
+        def complete(self, prompt, system="", json_mode=False):
+            import json
+            return json.dumps({"seniority": "Senior", "summary": "ok", "risks": ["r"], "rewrites": [], "hard_questions": ["q?"], "missing_evidence": []})
+
+    monkeypatch.setattr(ai_layer, "GroqProvider", lambda: Fake())
+    r = c.post("/api/ai/cv-review")
+    assert r.status_code == 200 and r.json()["seniority"] == "Senior"
+    assert c.get("/api/ai").json()["used_today"] == 1
+    assert c.post("/api/ai/story-tighten", json={"theme": "nope", "fields": {}}).status_code == 404
+
+
+def test_cv_review_versions_after_reupload():
+    c = client()
+    c.post("/api/analyze", files={"cv": ("v1.txt", CV)}, data={"jd_text": JD})
+    c.post("/api/analyze", files={"cv": ("v2.txt", CV + b"- Cut agency spend by 31% across 8 suppliers\n")})
+    v = c.get("/api/cv-review").json()["versions"]
+    assert [x["name"] for x in v] == ["v1.txt", "v2.txt"] and all("score" in x for x in v)
