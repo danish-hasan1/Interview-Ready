@@ -10,10 +10,13 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile  # n
 from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
+from interview_ready import config  # noqa: E402
+from interview_ready.coach import coach_note  # noqa: E402
 from interview_ready.cv_analysis import analyse_cv
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
 from interview_ready.gaps import analyse_gaps, gap_items  # noqa: E402
-from interview_ready.interview import build_queue, start_state, step  # noqa: E402
+from interview_ready.interview import build_queue, notes_plan, start_state, step
+from interview_ready.llm_provider import LLMUnavailable, get_provider  # noqa: E402
 from interview_ready.parsing import extract_text  # noqa: E402
 from interview_ready import training  # noqa: E402
 
@@ -36,6 +39,22 @@ class ClaimIn(BaseModel):
     type: str
     numbers: list = []
     ownership: str = "Contributed"
+    keywords: list = []
+
+
+class OwnershipIn(BaseModel):
+    text: str
+    ownership: str
+
+
+class LibraryIn(BaseModel):
+    kind: str = "feedback"
+    question: str
+    text: str
+
+
+class ApproveIn(BaseModel):
+    approved: bool = True
 
 
 class ClaimsIn(BaseModel):
@@ -69,7 +88,7 @@ def _to_claims(items) -> list:
     out = []
     for i in items:
         own = i.ownership if i.ownership in OWNERSHIP_LEVELS else "Contributed"
-        c = Claim(text=i.text, type=i.type, numbers=i.numbers, ownership=own)
+        c = Claim(text=i.text, type=i.type, numbers=i.numbers, ownership=own, keywords=i.keywords)
         c.questions = build_questions(c)
         out.append(c)
     return out
@@ -120,6 +139,14 @@ async def analyze(
     }
 
 
+@app.post("/api/claims/ownership")
+def claim_ownership(body: OwnershipIn, store=Depends(get_store)):
+    if body.ownership not in OWNERSHIP_LEVELS:
+        raise HTTPException(400, "Unknown ownership level")
+    store.set_ownership(body.text, body.ownership)
+    return {"ok": True}
+
+
 @app.post("/api/claims/questions")
 def claim_questions(body: ClaimsIn):
     return {"claims": [_claim_out(c) for c in _to_claims(body.claims)]}
@@ -127,10 +154,12 @@ def claim_questions(body: ClaimsIn):
 
 @app.post("/api/interview/start")
 def interview_start(body: StartIn, store=Depends(get_store)):
-    queue = build_queue(_to_claims(body.claims), [g.model_dump() for g in body.gap_items], min(max(body.max_questions, 1), 10), body.focus)
+    plan = notes_plan(body.notes) if not body.focus else {"extras": [], "max_followups": 1}
+    items = plan["extras"] + [g.model_dump() for g in body.gap_items]
+    queue = build_queue(_to_claims(body.claims), items, min(max(body.max_questions, 1), 10), body.focus)
     if not queue:
         raise HTTPException(400, "No questions could be built from this CV")
-    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue))}
+    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue), plan["max_followups"])}
 
 
 @app.post("/api/interview/answer")
@@ -140,7 +169,8 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
     cur = body.state["current"]
     score, new_state = step(body.state, body.answer)
     store.save_answer(body.session_id, cur["question"], cur["kind"], body.answer, score, cur.get("ref", ""))
-    return {"score": asdict(score), "state": new_state, "done": new_state["current"] is None}
+    return {"score": asdict(score), "state": new_state, "done": new_state["current"] is None,
+            "coach": _coach(store, cur["question"], body.answer, score)}
 
 
 class CheckIn(BaseModel):
@@ -210,6 +240,54 @@ def training_complete(body: CompleteIn, store=Depends(get_store)):
     return {"progress": store.training_progress()}
 
 
+def _provider():
+    """None when the model layer is off (default and always on Vercel)."""
+    if config.LLM_BACKEND == "off":
+        return None
+    try:
+        return get_provider(store_cache())
+    except LLMUnavailable:
+        return None
+
+
+def store_cache():
+    return _store if isinstance(_store, Store) else None
+
+
+def _coach(store, question, answer, score):
+    try:
+        return coach_note(question, answer, score.dims, score.fixes, store, _provider())
+    except Exception:  # model problems must never break scoring
+        return None
+
+
+@app.get("/api/llm")
+def llm_status():
+    return {"backend": config.LLM_BACKEND}
+
+
+@app.get("/api/library")
+def library(store=Depends(get_store)):
+    return {"items": store.list_library()}
+
+
+@app.post("/api/library")
+def library_add(body: LibraryIn, store=Depends(get_store)):
+    return {"id": store.add_library(body.kind, body.question, body.text)}
+
+
+@app.post("/api/library/{item_id}/approve")
+def library_approve(item_id: int, body: ApproveIn, store=Depends(get_store)):
+    store.approve_library(item_id, body.approved)
+    return {"ok": True}
+
+
+@app.delete("/api/library/{item_id}")
+def library_delete(item_id: int, store=Depends(get_store)):
+    store.delete_library(item_id)
+    return {"ok": True}
+
+
 @app.get("/api/profile")
 def profile(store=Depends(get_store)):
     return store.profile()
@@ -223,6 +301,11 @@ def workspace(store=Depends(get_store)):
         return {"has_cv": False}
     jd = store.latest_document("jd")
     claims = extract_claims(cv["text"])
+    saved = store.get_ownerships()
+    for c in claims:
+        if saved.get(c.text) in OWNERSHIP_LEVELS:
+            c.ownership = saved[c.text]
+            c.questions = build_questions(c)
     gaps = analyse_gaps(cv["text"], jd["text"]) if jd else []
     return {"has_cv": True, "cv_name": cv.get("name") or "CV", "has_jd": bool(jd),
             "claims": [_claim_out(c) for c in claims], "gaps": [asdict(g) for g in gaps],

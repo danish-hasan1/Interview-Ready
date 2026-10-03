@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { api } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { api, post } from "@/lib/api";
+import type { LibraryItem } from "@/lib/types";
 import { Btn, PageHeader } from "./ui";
 
 const POINTS = [
@@ -13,6 +14,9 @@ const POINTS = [
 export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
   const [sure, setSure] = useState(false);
   const [msg, setMsg] = useState("");
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const load = useCallback(() => api<{ items: LibraryItem[] }>("/library").then((r) => setItems(r.items)).catch(() => {}), []);
+  useEffect(() => { load(); }, [load]);
 
   async function exportAll() {
     const data = await api<unknown>("/export");
@@ -32,6 +36,23 @@ export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
       <ul className="sheet divide-y divide-line">
         {POINTS.map(([t, d]) => <li key={t} className="p-4"><p className="font-display font-bold">{t}</p><p className="text-sm text-muted">{d}</p></li>)}
       </ul>
+      <div className="sheet mt-5 p-5">
+        <p className="label mb-1">Coach library</p>
+        <p className="mb-3 text-sm text-muted">Notes saved from the local model. Approve the ones worth keeping: approved notes are served instantly next time the same question comes up, so the model is needed less.</p>
+        {items.length === 0 ? <p className="text-sm text-muted">Nothing saved yet. Notes appear here when a local model is enabled and you save one from Practice.</p> : (
+          <ul className="divide-y divide-line">
+            {items.map((i) => (
+              <li key={i.id} className="py-3 text-sm">
+                <p className="label">{i.question}</p><p className="mt-1">{i.text}</p>
+                <div className="mt-2 flex gap-3">
+                  <button className="label underline hover:text-ink" onClick={() => post(`/library/${i.id}/approve`, { approved: !i.approved }).then(load)}>{i.approved ? "Approved · click to unapprove" : "Approve"}</button>
+                  <button className="label underline hover:text-pen" onClick={() => api(`/library/${i.id}`, { method: "DELETE" }).then(load)}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="sheet mt-5 p-5">
         <p className="label mb-3">Manage your data</p>
         <div className="flex flex-wrap items-center gap-3">

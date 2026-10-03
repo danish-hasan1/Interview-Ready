@@ -20,6 +20,7 @@ class Claim:
     numbers: list = field(default_factory=list)
     ownership: str = "Contributed"
     questions: list = field(default_factory=list)
+    keywords: list = field(default_factory=list)
 
 
 def _lines(text: str):
@@ -46,6 +47,23 @@ def _short(text: str, n: int = 110) -> str:
     return text if len(text) <= n else text[: n - 1].rstrip() + "…"
 
 
+def extract_keywords(sent: str) -> list:
+    """Proper nouns, acronyms and commercial terms worth being asked about."""
+    s = preset("scoring")
+    words = re.findall(r"[A-Za-z][A-Za-z&/+-]*", sent)
+    out = []
+    for i, w in enumerate(words):
+        if (len(w) >= 2 and w.isupper()) or (i > 0 and w[0].isupper() and len(w) > 2):
+            out.append(w)
+    low = sent.lower()
+    out += [t for t in s["impact"] if re.search(rf"(?<!\w){re.escape(t)}(?!\w)", low)]
+    seen, res = set(), []
+    for k in out:
+        if k.lower() not in seen:
+            seen.add(k.lower()); res.append(k)
+    return res[:6]
+
+
 def extract_claims(cv_text: str) -> list:
     s = preset("scoring")
     verbs = tuple(s["action_verbs"])
@@ -70,7 +88,7 @@ def extract_claims(cv_text: str) -> list:
             else:
                 continue
             seen.add(key)
-            c = Claim(text=sent, type=ctype, numbers=numbers)
+            c = Claim(text=sent, type=ctype, numbers=numbers, keywords=extract_keywords(sent))
             c.questions = build_questions(c)
             claims.append(c)
     order = {"metric": 0, "action": 1, "title": 2}

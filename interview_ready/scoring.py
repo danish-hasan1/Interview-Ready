@@ -30,6 +30,20 @@ def _any(text: str, phrases) -> bool:
     return _count_phrases(text, phrases) > 0
 
 
+def _parts(text: str, fw: dict) -> dict:
+    return {name: _any(text, terms) for name, terms in fw["parts"].items()}
+
+
+def expected_framework(question: str) -> str:
+    """Which answer framework the question calls for: business | advisory | ''."""
+    q = (question or "").lower()
+    fws = preset("scoring")["frameworks"]
+    for key in ("business", "advisory"):
+        if any(c in q for c in fws[key]["question_cues"]):
+            return key
+    return ""
+
+
 def score_structure(answer: str, s: dict):
     st = s["structure"]
     first = re.split(r"(?<=[.!?])\s+", answer.strip())[0] if answer.strip() else ""
@@ -50,7 +64,19 @@ def score_structure(answer: str, s: dict):
     # best of the two frameworks
     a = sum([headline, points, example, result])
     b = sum([context, action, result, example])
-    score = min(10, round(max(a, b) / 4 * 10))
+    fws = s["frameworks"]
+    biz, adv = _parts(answer, fws["business"]), _parts(answer, fws["advisory"])
+    nb, na = sum(biz.values()), sum(adv.values())
+    impact = _any(answer, s["impact"])
+    fracs = [a / 4, b / 4, nb / 6, na / 5]
+    if nb >= fws["business"]["min_parts"] and nb / 6 >= max(fracs[:2]):
+        fw = fws["business"]["name"]
+    elif na >= fws["advisory"]["min_parts"] and na / 5 >= max(fracs[:2]):
+        fw = fws["advisory"]["name"]
+    elif fw == "Context → Problem → Action → Result" and impact:
+        fw = fws["cpar"]["name"]
+    score = min(10, round(max(fracs) * 10))
+    parts["business_parts"], parts["advisory_parts"] = biz, adv
     return score, fw, parts
 
 
@@ -97,7 +123,7 @@ def score_impact(answer: str, s: dict):
     return (6 if hits else 0), hits
 
 
-def score_answer(answer: str) -> Score:
+def score_answer(answer: str, question: str = "") -> Score:
     s = preset("scoring")
     structure, fw, parts = score_structure(answer, s)
     specificity, spec_n = score_specificity(answer, s)
@@ -121,8 +147,17 @@ def score_answer(answer: str) -> Score:
         "filler": "Drop filler words: " + ", ".join(f'"{k}" x{v}' for k, v in list(filler_found.items())[:4]) + ". Pause instead.",
         "business_impact": "State the business impact in revenue, cost or margin terms, with a number.",
     }
+    want = expected_framework(question)
+    if want and structure < 8:
+        key = "business_parts" if want == "business" else "advisory_parts"
+        have = parts[key]
+        missing = [n for n, ok in have.items() if not ok]
+        name = s["frameworks"][want]["name"]
+        fixes_by_dim["structure"] = f"This question needs the {name} frame. You covered {len(have) - len(missing)} of {len(have)}; missing: {', '.join(missing)}."
     weakest = sorted(DIMENSIONS, key=lambda d: dims[d])
     fixes = [fixes_by_dim[d] for d in weakest if dims[d] < 7][:3]
+    if want and structure < 8 and fixes_by_dim["structure"] not in fixes:
+        fixes = fixes[:2] + [fixes_by_dim["structure"]]  # the question's expected frame always gets named
     if not fixes and answer.strip():
         fixes = ["Solid. Next: keep this structure under pressure and tighten the headline."]
     total = round(sum(dims.values()) / len(dims), 1)

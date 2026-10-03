@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { post } from "@/lib/api";
 import { DIM, DIM_ORDER } from "@/lib/dims";
 import { defence, SOLID_AT } from "@/lib/status";
-import type { Analysis, InterviewState, Profile, Score } from "@/lib/types";
+import type { Analysis, Coach, InterviewState, Profile, Score } from "@/lib/types";
 import type { DrillRequest } from "./Brief";
 import { Btn, CountUp, PageHeader, RatingBar, Stamp, ease } from "./ui";
 
-type Item = { q: string; kind: string; ref: string; a: string; score: Score };
+type Item = { q: string; kind: string; ref: string; a: string; score: Score; coach: Coach };
 const TARGET = 150;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -63,8 +63,8 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
     setBusy(true); setErr("");
     const cur = state.current;
     try {
-      const r = await post<{ score: Score; state: InterviewState; done: boolean }>("/interview/answer", { session_id: sid, state, answer });
-      setLog((l) => [...l, { q: cur.question, kind: cur.kind, ref: cur.ref ?? "", a: answer, score: r.score }]);
+      const r = await post<{ score: Score; state: InterviewState; done: boolean; coach: Coach }>("/interview/answer", { session_id: sid, state, answer });
+      setLog((l) => [...l, { q: cur.question, kind: cur.kind, ref: cur.ref ?? "", a: answer, score: r.score, coach: r.coach }]);
       setState(r.state); setAnswer("");
       onFinished();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
@@ -125,7 +125,7 @@ export default function Practice({ analysis, notes, profile, request, onConsumed
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="ml-6 border-l-[3px] border-blue pl-4 text-[15px]">
                 <p className="label mb-1 !text-blue">You</p><p className="whitespace-pre-wrap">{it.a}</p>
               </motion.div>
-              <Assessment score={it.score} refText={it.ref} state={liveState(it.ref)} />
+              <Assessment score={it.score} refText={it.ref} state={liveState(it.ref)} coach={it.coach} question={it.q} />
             </div>
           ))}
 
@@ -203,7 +203,8 @@ function Interviewer({ text, pressing, big }: { text: string; pressing: boolean;
   );
 }
 
-function Assessment({ score, refText, state }: { score: Score; refText: string; state: "untested" | "shaky" | "solid" }) {
+function Assessment({ score, refText, state, coach, question }: { score: Score; refText: string; state: "untested" | "shaky" | "solid"; coach: Coach; question: string }) {
+  const [saved, setSaved] = useState(false);
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="sheet p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -216,6 +217,16 @@ function Assessment({ score, refText, state }: { score: Score; refText: string; 
       <ul className="mt-3 space-y-1.5 border-t border-line pt-3 text-sm">
         {score.fixes.map((f, k) => <li key={k} className="flex gap-2"><span className="label mt-0.5 shrink-0 !text-pen">Fix</span>{f}</li>)}
       </ul>
+      {coach && (
+        <div className="mt-3 rounded-md border-l-[3px] border-blue bg-blue/5 p-3 text-sm">
+          <p className="label mb-1 !text-blue">Coach note · {coach.source === "library" ? "from your library" : "local model"}</p>
+          <p>{coach.text}</p>
+          {coach.source === "model" && (
+            <button disabled={saved} onClick={() => post("/library", { kind: "feedback", question, text: coach.text }).then(() => setSaved(true))}
+              className="label mt-2 underline hover:text-ink">{saved ? "Saved for review in Your data" : "Save to library for review"}</button>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }

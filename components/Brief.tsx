@@ -25,6 +25,7 @@ export default function Brief({ analysis, setAnalysis, notes, setNotes, profile,
 function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes: (n: string) => void; onDone: (a: Analysis) => void; onCancel?: () => void }) {
   const [cv, setCv] = useState<File | null>(null);
   const [jd, setJd] = useState("");
+  const [jdFile, setJdFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [drag, setDrag] = useState(false);
@@ -35,6 +36,7 @@ function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes
       const fd = new FormData();
       if (cv) fd.append("cv", cv);
       fd.append("jd_text", jd);
+      if (jdFile) fd.append("jd", jdFile);
       onDone(await api<Analysis>("/analyze", { method: "POST", body: fd }));
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
@@ -59,6 +61,10 @@ function Upload({ notes, setNotes, onDone, onCancel }: { notes: string; setNotes
           <label htmlFor="jd" className="label mb-2">2 · The role (paste the job description)</label>
           <textarea id="jd" className="min-h-48 flex-1 resize-y rounded-md border border-line bg-paper/60 p-3 text-sm outline-none focus:border-blue"
             placeholder="Paste requirements here…" value={jd} onChange={(e) => setJd(e.target.value)} />
+          <label className="label mt-2 flex cursor-pointer items-center gap-2 hover:text-ink">
+            <input className="sr-only" type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setJdFile(e.target.files?.[0] ?? null)} />
+            <span className="underline">{jdFile ? `Using file: ${jdFile.name}` : "or upload the job description (PDF, DOCX, TXT)"}</span>
+          </label>
         </div>
       </div>
       <div className="sheet mt-4 p-5">
@@ -97,6 +103,7 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
     const claims = analysis.claims.map((c, j) => (j === i ? { ...c, ownership } : c));
     const res = await post<{ claims: Claim[] }>("/claims/questions", { claims });
     setAnalysis({ ...analysis, claims: res.claims });
+    post("/claims/ownership", { text: claims[i].text, ownership }).catch(() => {});
   }
 
   return (
@@ -161,6 +168,7 @@ function Board({ analysis, setAnalysis, profile, onDrill, goTo, onReplace }: {
                             </div>
                           </div>
                           {r.claim.numbers.length > 0 && <p className="label">Numbers you must defend: <span className="text-ink">{r.claim.numbers.join(" · ")}</span></p>}
+                          {r.claim.keywords?.length > 0 && <p className="label">Keywords they may probe: <span className="text-ink">{r.claim.keywords.join(" · ")}</span></p>}
                           <div>
                             <p className="label mb-2">They will ask</p>
                             <ul className="space-y-1.5 text-sm">{r.claim.questions.map((q) => <li key={q} className="border-l-2 border-pen/60 pl-3">{q}</li>)}</ul>

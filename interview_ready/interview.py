@@ -78,7 +78,8 @@ def step(state: dict, answer: str, max_questions: int = 10, max_followups: int =
     queue = [Turn(**t) for t in state["queue"]]
     cur = Turn(**state["current"])
     asked, used = state["asked"], state["followups_used"]
-    score = score_answer(answer)
+    max_followups = state.get("max_followups", max_followups)
+    score = score_answer(answer, cur.question)
     key = follow_up_for(answer, score) if cur.kind != "followup" and used < max_followups else None
     if key:
         nxt, used = Turn(preset("pressure")[key], "followup", cur.ref), used + 1
@@ -87,12 +88,21 @@ def step(state: dict, answer: str, max_questions: int = 10, max_followups: int =
     else:
         nxt, asked, used = queue[asked], asked + 1, 0
     return score, {
-        "queue": state["queue"], "asked": asked, "followups_used": used,
+        "queue": state["queue"], "asked": asked, "followups_used": used, "max_followups": max_followups,
         "current": None if nxt is None else {"question": nxt.question, "kind": nxt.kind, "ref": nxt.ref},
     }
 
 
-def start_state(queue: list, max_questions: int = 10) -> dict:
+def start_state(queue: list, max_questions: int = 10, max_followups: int = 1) -> dict:
     qs = queue[:max_questions]
-    return {"queue": [{"question": t.question, "kind": t.kind, "ref": t.ref} for t in qs], "asked": 1, "followups_used": 0,
+    return {"max_followups": max_followups, "queue": [{"question": t.question, "kind": t.kind, "ref": t.ref} for t in qs], "asked": 1, "followups_used": 0,
             "current": {"question": qs[0].question, "kind": qs[0].kind, "ref": qs[0].ref} if qs else None}
+
+
+def notes_plan(notes: str) -> dict:
+    """Turn interviewer/company notes into extra questions and a pressure level (rules only)."""
+    low = (notes or "").lower()
+    rules = preset("notes_rules")
+    extras = [{"question": r["question"], "ref": r["ref"]} for r in rules["rules"] if any(m in low for m in r["match"])]
+    pressure = 2 if any(c in low for c in rules["pressure_cues"]) else 1
+    return {"extras": extras[:2], "max_followups": pressure}

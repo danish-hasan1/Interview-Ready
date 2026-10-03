@@ -11,10 +11,11 @@ CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TE
 CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
 CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY, kind TEXT, question TEXT, text TEXT, approved INTEGER DEFAULT 0, created TEXT);
 CREATE TABLE IF NOT EXISTS training (id INTEGER PRIMARY KEY, lesson_id TEXT, score REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
-TABLES = ["documents", "claims", "sessions", "answers", "training"]
+TABLES = ["documents", "claims", "sessions", "answers", "training", "library"]
 
 
 def _now():
@@ -136,6 +137,28 @@ class Store(BaseStore):
     def list_sessions(self):
         return [dict(r) for r in self.conn.execute("SELECT id, created, role FROM sessions")]
 
+    def set_ownership(self, text, ownership):
+        self._q("UPDATE claims SET ownership=? WHERE text=?", (ownership, text))
+
+    def get_ownerships(self):
+        return {r["text"]: r["ownership"] for r in self.conn.execute("SELECT text, ownership FROM claims")}
+
+    def add_library(self, kind, question, text):
+        return self._q("INSERT INTO library(kind,question,text,approved,created) VALUES(?,?,?,0,?)", (kind, question, text, _now())).lastrowid
+
+    def list_library(self):
+        return [{**dict(r), "approved": bool(r["approved"])} for r in self.conn.execute("SELECT * FROM library ORDER BY id DESC")]
+
+    def approve_library(self, item_id, approved=True):
+        self._q("UPDATE library SET approved=? WHERE id=?", (1 if approved else 0, item_id))
+
+    def delete_library(self, item_id):
+        self._q("DELETE FROM library WHERE id=?", (item_id,))
+
+    def find_approved(self, question):
+        r = self.conn.execute("SELECT text FROM library WHERE approved=1 AND question=? ORDER BY id DESC LIMIT 1", (question,)).fetchone()
+        return r["text"] if r else None
+
     def record_training(self, lesson_id, score):
         self._q("INSERT INTO training(lesson_id,score,created) VALUES(?,?,?)", (lesson_id, score, _now()))
 
@@ -209,6 +232,28 @@ class SupabaseStore(BaseStore):
     def list_sessions(self):
         return self._req("GET", "sessions", params={"select": "id,created,role"})
 
+    def set_ownership(self, text, ownership):
+        self._req("PATCH", "claims", params={"text": f"eq.{text}"}, json={"ownership": ownership})
+
+    def get_ownerships(self):
+        return {r["text"]: r["ownership"] for r in self._req("GET", "claims", params={"select": "text,ownership"})}
+
+    def add_library(self, kind, question, text):
+        return self._req("POST", "library", json={"kind": kind, "question": question, "text": text, "approved": False})[0]["id"]
+
+    def list_library(self):
+        return self._req("GET", "library", params={"order": "id.desc"})
+
+    def approve_library(self, item_id, approved=True):
+        self._req("PATCH", "library", params={"id": f"eq.{item_id}"}, json={"approved": approved})
+
+    def delete_library(self, item_id):
+        self._req("DELETE", "library", params={"id": f"eq.{item_id}"})
+
+    def find_approved(self, question):
+        rows = self._req("GET", "library", params={"approved": "eq.true", "question": f"eq.{question}", "order": "id.desc", "limit": 1})
+        return rows[0]["text"] if rows else None
+
     def record_training(self, lesson_id, score):
         self._req("POST", "training", json={"lesson_id": lesson_id, "score": score})
 
@@ -219,5 +264,5 @@ class SupabaseStore(BaseStore):
         return {t: self._req("GET", t) for t in TABLES}
 
     def delete_all(self):
-        for t in ["training", "answers", "sessions", "claims", "documents"]:
+        for t in ["library", "training", "answers", "sessions", "claims", "documents"]:
             self._req("DELETE", t, params={"id": "gt.0"})

@@ -87,3 +87,25 @@ def test_training_checks():
     assert res["score"] > 0 and all(f["ok"] for f in res["fields"])
     bad = check_build("structure", {"headline": ""})
     assert not bad["pass"]
+
+
+def test_business_and_advisory_frameworks_recognised():
+    biz = ("Revenue: unfilled roles cost $60k a month. Cost: cost per hire fell 24%. Margin: savings added 0.4 points. "
+           "People: retention rose to 91%. Operations: each recruiter handles 22 reqs. Growth: we staffed a new region.")
+    s = score_answer(biz, "How does talent acquisition affect the P&L?")
+    assert "Revenue" in s.framework and s.dims["structure"] >= 8
+    adv = ("Diagnosis: the root cause is late-stage drop-off. I'd analyse stage data. I recommend a faster panel. "
+           "To implement: three steps within 6 weeks. I'd measure time to hire against a 40 day target.")
+    s2 = score_answer(adv, "What would you do about slow hiring?")
+    assert "Diagnose" in s2.framework
+    weak = score_answer("We did some things and hired people.", "How does hiring affect margin and the P&L?")
+    assert any("frame" in f and "missing" in f for f in weak.fixes)
+
+
+def test_claim_keywords_and_notes_plan():
+    from interview_ready.interview import notes_plan
+    c = extract_claims("- Led a $1.2M agency budget across EMEA with Workday and Greenhouse ATS")[0]
+    assert any(k in c.keywords for k in ["EMEA", "Workday", "ATS", "budget"])
+    p = notes_plan("CEO is tough and blunt, finance background")
+    assert p["max_followups"] == 2 and p["extras"]
+    assert notes_plan("")["max_followups"] == 1

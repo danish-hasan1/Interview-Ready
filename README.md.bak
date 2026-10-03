@@ -19,7 +19,7 @@ npm run dev                                    # terminal 2 -> http://localhost:
 ```
 
 ## Deploy (Vercel + Supabase), single owner, no login
-1. Run `supabase/migrations/0001_init.sql`, then `0002_answer_ref.sql`, in the Supabase SQL editor.
+1. Run `supabase/migrations/0001_init.sql`, then `0002_answer_ref.sql`, then `0003_training.sql`, in the Supabase SQL editor.
 2. Vercel env vars (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
 3. Import the GitHub repo in Vercel. Framework: Next.js. `vercel.ts` routes `/api/*` to the Python function.
 4. **Turn on Vercel Deployment Protection** (Project Settings -> Deployment Protection). The app has no login, so this is what keeps your CV private.

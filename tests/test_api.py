@@ -80,3 +80,31 @@ def test_cv_review_training_flow():
     assert c.get("/api/training").json()["progress"]["structure"]["best"] == 7.5
     c.delete("/api/data")
     assert not c.get("/api/training").json()["progress"]
+
+
+def test_ownership_persists_and_library_first_coach(monkeypatch):
+    c = client()
+    body = c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD}).json()
+    text = body["claims"][0]["text"]
+    assert c.post("/api/claims/ownership", json={"text": text, "ownership": "Led"}).status_code == 200
+    assert c.post("/api/claims/ownership", json={"text": text, "ownership": "Nope"}).status_code == 400
+    ws = c.get("/api/workspace").json()
+    assert next(x for x in ws["claims"] if x["text"] == text)["ownership"] == "Led"
+
+    start = c.post("/api/interview/start", json={"claims": body["claims"], "gap_items": body["gap_items"],
+                                                 "notes": "CEO, tough and blunt"}).json()
+    assert start["state"]["max_followups"] == 2
+    q = start["state"]["current"]["question"]
+    lid = c.post("/api/library", json={"question": q, "text": "Name the baseline first."}).json()["id"]
+    r = c.post("/api/interview/answer", json={"session_id": start["session_id"], "state": start["state"], "answer": "We did things."}).json()
+    assert r["coach"] is None
+    c.post(f"/api/library/{lid}/approve", json={"approved": True})
+    start2 = c.post("/api/interview/start", json={"claims": body["claims"], "gap_items": body["gap_items"], "notes": "CEO, tough and blunt"}).json()
+    q2 = start2["state"]["current"]["question"]
+    c.post("/api/library", json={"question": q2, "text": "Lead with the number."})
+    item = [i for i in c.get("/api/library").json()["items"] if i["question"] == q2][0]
+    c.post(f"/api/library/{item['id']}/approve", json={"approved": True})
+    r2 = c.post("/api/interview/answer", json={"session_id": start2["session_id"], "state": start2["state"], "answer": "We did things."}).json()
+    assert r2["coach"] == {"text": "Lead with the number.", "source": "library"}
+    c.delete(f"/api/library/{item['id']}")
+    assert all(i["id"] != item["id"] for i in c.get("/api/library").json()["items"])

@@ -6,6 +6,7 @@ export type Claim = {
   numbers: string[];
   ownership: (typeof OWNERSHIP)[number];
   questions: string[];
+  keywords: string[];
 };
 
 export type Gap = { requirement: string; status: "missing" | "weak" | "evidenced"; coverage: number; evidence: string[] };
@@ -50,3 +51,6 @@ export type TrainingOverview = {
   progress: Record<string, { attempts: number; best: number; last: number }>;
   rewrite_bullets: BulletReview[]; claim: string; metric: string;
 };
+
+export type Coach = { text: string; source: "library" | "model" } | null;
+export type LibraryItem = { id: number; kind: string; question: string; text: string; approved: boolean };

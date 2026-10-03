@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "match": [
+        "ceo",
+        "cfo",
+        "finance",
+        "commercial",
+        "board",
+        "exec"
+      ],
+      "question": "The interviewer is senior and commercial. Walk me through how your work moved revenue, cost or margin, with numbers.",
+      "ref": "Interviewer focus: commercial"
+    },
+    {
+      "match": [
+        "technical",
+        "engineer",
+        "data",
+        "analytics",
+        "ats"
+      ],
+      "question": "The interviewer is technical. Which metrics do you track in your funnel, and how did you validate the data?",
+      "ref": "Interviewer focus: metrics"
+    },
+    {
+      "match": [
+        "culture",
+        "values",
+        "people",
+        "behavio"
+      ],
+      "question": "Tell me about a time you had to lead through conflict or disagreement. What did you personally do?",
+      "ref": "Interviewer focus: leadership"
+    },
+    {
+      "match": [
+        "strategy",
+        "strategic",
+        "transformation",
+        "vision"
+      ],
+      "question": "If you joined tomorrow, how would you diagnose the function and what would you recommend first?",
+      "ref": "Interviewer focus: strategy"
+    }
+  ],
+  "pressure_cues": [
+    "aggressive",
+    "tough",
+    "challenging",
+    "blunt",
+    "interrupt",
+    "grill"
+  ]
+}
