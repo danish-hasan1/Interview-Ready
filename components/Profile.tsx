@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Profile as P } from "@/lib/types";
+import { Empty, PageTitle, RatingBar } from "./ui";
 
 export default function Profile({ onDeleted }: { onDeleted: () => void }) {
   const [p, setP] = useState<P | null>(null);
@@ -24,30 +25,37 @@ export default function Profile({ onDeleted }: { onDeleted: () => void }) {
   }
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Progress</h2>
-      {err && <p className="text-sm text-red-600">{err}</p>}
-      {p && p.sessions.length === 0 && <p className="text-neutral-500">No sessions yet.</p>}
+    <section>
+      <PageTitle eyebrow="Step 5 · Profile" title="Are you getting better?" />
+      {err && <p role="alert" className="mb-4 text-sm font-medium text-pen">{err}</p>}
+      {p && p.sessions.length === 0 && <Empty text="No interviews scored yet. Finish a mock interview and your progress shows up here." />}
       {p && p.sessions.length > 0 && (
-        <>
-          <div className="flex h-32 items-end gap-2">
-            {p.sessions.map((s) => (
-              <div key={s.id} title={`${s.avg_total}/10`} className="flex flex-1 flex-col items-center">
-                <div className="w-full rounded-t bg-black" style={{ height: `${s.avg_total * 10}%` }} />
-                <span className="text-xs">{s.avg_total}</span>
-              </div>
-            ))}
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="card rise p-5">
+            <p className="label mb-4">Average score per session</p>
+            <div className="flex h-40 items-end gap-2">
+              {p.sessions.map((s) => (
+                <div key={s.id} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`Session ${s.id}: ${s.avg_total}/10`}>
+                  <span className="font-mono text-xs">{s.avg_total}</span>
+                  <div className="w-full rounded-t bg-cobalt" style={{ height: `${s.avg_total * 10}%` }} />
+                </div>
+              ))}
+            </div>
           </div>
-          <h3 className="font-medium">Weakest dimensions</h3>
-          <ul className="list-disc pl-5">{p.weaknesses.map(([d, v]) => <li key={d}><b>{d}</b>: {v}/10</li>)}</ul>
-        </>
+          <div className="card rise p-5" style={{ animationDelay: "60ms" }}>
+            <p className="label mb-4">Weakest dimensions — work on these first</p>
+            <div className="space-y-3">{p.weaknesses.map(([d, v]) => <RatingBar key={d} label={d} value={v} />)}</div>
+          </div>
+        </div>
       )}
-      <hr />
-      <h3 className="font-medium">Your data</h3>
-      <button onClick={exportAll} className="rounded border px-3 py-1">Export all my data (JSON)</button>
-      <div className="space-x-2">
-        <label className="text-sm"><input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} /> I understand this deletes everything permanently</label>
-        <button disabled={!sure} onClick={del} className="rounded bg-red-600 px-3 py-1 text-white disabled:opacity-40">Delete all my data</button>
+
+      <div className="card mt-8 p-5">
+        <p className="label mb-3">Your data</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={exportAll} className="btn btn-ghost">Export everything (JSON)</button>
+          <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} /> Delete permanently, I understand</label>
+          <button disabled={!sure} onClick={del} className="btn bg-pen text-white disabled:opacity-40">Delete all my data</button>
+        </div>
       </div>
     </section>
   );

@@ -1,26 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --paper: #eef1f4;      /* fog */
+  --card: #fbfcfd;
+  --ink: #101b27;        /* ink navy */
+  --muted: #5d6b79;
+  --line: #d3dae1;
+  --cobalt: #2446d6;     /* candidate: you */
+  --pen: #d03a2f;        /* interviewer's red pen */
+  --pass: #1d8a6c;
+  --amber: #c98a12;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-cobalt: var(--cobalt);
+  --color-pen: var(--pen);
+  --color-pass: var(--pass);
+  --color-amber: var(--amber);
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui;
+  --font-sans: var(--font-public), ui-sans-serif, system-ui;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html { background: var(--paper); }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(36, 70, 214, 0.07), transparent 60%),
+    var(--paper);
 }
+
+.label { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.btn { display: inline-flex; align-items: center; gap: .5rem; border-radius: 10px; padding: .6rem 1.1rem; font-weight: 600; font-size: .9rem; transition: transform .12s, background .12s, box-shadow .12s; }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--cobalt); box-shadow: 0 6px 18px -8px var(--cobalt); }
+.btn-ghost { border: 1px solid var(--line); background: var(--card); }
+.btn-ghost:hover { border-color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } * { transition: none !important; } }
+
+/* Red-pen margin note: the one signature device (interviewer pushback). */
+.pen-note { position: relative; border-left: 3px solid var(--pen); background: rgba(208, 58, 47, .06); border-radius: 4px 12px 12px 4px; padding: .85rem 1rem; }
+.pen-note::before { content: "PUSHBACK"; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; color: var(--pen); display: block; margin-bottom: .25rem; }

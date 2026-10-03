@@ -2,10 +2,12 @@
 import { useState } from "react";
 import { post } from "@/lib/api";
 import type { Analysis, InterviewState, Score } from "@/lib/types";
+import { Empty, PageTitle, RatingBar } from "./ui";
 
-type Item = { q: string; a: string; score: Score };
+type Item = { q: string; kind: string; a: string; score: Score };
+const TARGET = 150;
 
-export default function Interview({ analysis, notes }: { analysis: Analysis | null; notes: string }) {
+export default function Interview({ analysis, notes, goInputs }: { analysis: Analysis | null; notes: string; goInputs: () => void }) {
   const [sid, setSid] = useState<number | null>(null);
   const [state, setState] = useState<InterviewState | null>(null);
   const [log, setLog] = useState<Item[]>([]);
@@ -13,7 +15,7 @@ export default function Interview({ analysis, notes }: { analysis: Analysis | nu
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  if (!analysis) return <p className="text-neutral-500">Run Analyse first.</p>;
+  if (!analysis) return <Empty text="Analyse your CV first, then the interviewer has something to ask." action={<button className="btn btn-primary" onClick={goInputs}>Go to inputs</button>} />;
 
   async function start() {
     setErr("");
@@ -30,39 +32,82 @@ export default function Interview({ analysis, notes }: { analysis: Analysis | nu
     setBusy(true); setErr("");
     try {
       const r = await post<{ score: Score; state: InterviewState }>("/interview/answer", { session_id: sid, state, answer });
-      setLog([...log, { q: state.current.question, a: answer, score: r.score }]);
+      setLog([...log, { q: state.current.question, kind: state.current.kind, a: answer, score: r.score }]);
       setState(r.state); setAnswer("");
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
   }
 
-  const finished = state && !state.current;
+  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+  const total = state ? state.queue.length : 0;
+  const finished = !!state && !state.current;
+  const pressing = state?.current?.kind === "followup";
+
+  if (!state) {
+    return (
+      <section>
+        <PageTitle eyebrow="Step 4 · Mock interview" title="Ready when you are.">
+          {analysis.claims.length} claims and {analysis.gap_questions.length} gap questions are loaded. The interviewer will push back if you ramble, skip numbers, or hide behind “we”.
+        </PageTitle>
+        <button onClick={start} className="btn btn-primary">Begin interview <span aria-hidden>→</span></button>
+        {err && <p role="alert" className="mt-3 text-sm font-medium text-pen">{err}</p>}
+      </section>
+    );
+  }
+
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Mock interview</h2>
-        <button onClick={start} className="rounded bg-black px-3 py-1 text-white">{state ? "Restart" : "Start interview"}</button>
-      </div>
-      {log.map((it, i) => (
-        <div key={i} className="space-y-1">
-          <p className="font-medium">🎙 {it.q}</p>
-          <p className="rounded bg-neutral-100 p-2">{it.a}</p>
-          <div className="rounded border p-2 text-sm">
-            <b>Score {it.score.total}/10</b> — {Object.entries(it.score.dims).map(([d, v]) => `${d}: ${v}`).join(" · ")}
-            {it.score.framework && <p className="text-neutral-500">Framework: {it.score.framework}</p>}
-            <ul className="list-disc pl-5">{it.score.fixes.map((f, k) => <li key={k}>{f}</li>)}</ul>
+    <section>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <p className="label mb-2">Step 4 · Mock interview</p>
+          <div className="flex gap-1.5" aria-label={`Question ${Math.min(state.asked, total)} of ${total}`}>
+            {Array.from({ length: total }, (_, i) => (
+              <span key={i} className={`h-1.5 w-8 rounded-full ${i < state.asked - (finished ? 0 : 1) ? "bg-pass" : i === state.asked - 1 && !finished ? "bg-cobalt" : "bg-line"}`} />
+            ))}
           </div>
         </div>
-      ))}
-      {state?.current && (
-        <div className="space-y-2">
-          <p className="font-medium">🎙 {state.current.question}</p>
-          <textarea className="h-32 w-full rounded border p-2" value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" />
-          <button disabled={busy} onClick={submit} className="rounded bg-black px-4 py-2 text-white disabled:opacity-50">{busy ? "Scoring…" : "Submit answer"}</button>
-        </div>
-      )}
-      {finished && <p className="text-green-700">Interview finished. Scores saved — see Profile.</p>}
-      {err && <p className="text-sm text-red-600">{err}</p>}
+        <button onClick={start} className="btn btn-ghost">Restart</button>
+      </div>
+
+      <div className="space-y-6">
+        {log.map((it, i) => (
+          <div key={i} className="space-y-3">
+            {it.kind === "followup" ? <div className="pen-note"><p className="font-medium">{it.q}</p></div> : <p className="font-display text-xl font-bold leading-snug">{it.q}</p>}
+            <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-cobalt/10 p-4 text-[15px]"><p className="label mb-1 text-cobalt">You</p>{it.a}</div>
+            <div className="card p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <p className="label">Assessment</p>
+                <p className="font-display text-3xl font-extrabold">{it.score.total}<span className="text-base text-muted">/10</span></p>
+              </div>
+              <div className="space-y-2">{Object.entries(it.score.dims).map(([d, v]) => <RatingBar key={d} label={d} value={v} />)}</div>
+              {it.score.framework && <p className="label mt-3 text-pass">Framework detected: {it.score.framework}</p>}
+              <ul className="mt-4 space-y-1.5 border-t border-line pt-3 text-sm">
+                {it.score.fixes.map((f, k) => <li key={k} className="flex gap-2"><span className="label mt-0.5 shrink-0 text-pen">Fix</span>{f}</li>)}
+              </ul>
+            </div>
+          </div>
+        ))}
+
+        {state.current && (
+          <div className="space-y-3">
+            {pressing ? <div className="pen-note"><p className="font-medium">{state.current.question}</p></div>
+              : <p className="font-display text-2xl font-bold leading-snug">{state.current.question}</p>}
+            <textarea aria-label="Your answer" className="card h-40 w-full resize-y p-4 text-[15px] outline-none focus:border-cobalt"
+              value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Answer as you would out loud. Headline first, then your points, an example, the result." />
+            <div className="flex items-center gap-4">
+              <button disabled={busy || !answer.trim()} onClick={submit} className="btn btn-primary">{busy ? "Scoring…" : "Submit answer"}</button>
+              <div className="flex flex-1 items-center gap-3">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+                  <div className={`h-full transition-all ${words > 180 ? "bg-pen" : words >= 40 ? "bg-pass" : "bg-amber"}`} style={{ width: `${Math.min(100, (words / TARGET) * 100)}%` }} />
+                </div>
+                <span className="label w-28 text-right">{words} / ~{TARGET} words</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {finished && <div className="card border-pass/50 bg-pass/5 p-5"><p className="font-display text-xl font-bold text-pass">Interview complete. Scores saved.</p><p className="mt-1 text-sm text-muted">Open Profile to see your weakest dimensions.</p></div>}
+        {err && <p role="alert" className="text-sm font-medium text-pen">{err}</p>}
+      </div>
     </section>
   );
 }
