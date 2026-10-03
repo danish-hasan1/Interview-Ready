@@ -4,7 +4,7 @@ import streamlit as st
 from interview_ready import config
 from interview_ready.claims import OWNERSHIP_LEVELS, extract_claims
 from interview_ready.db import Store
-from interview_ready.gaps import analyse_gaps, gap_questions
+from interview_ready.gaps import analyse_gaps, gap_items
 from interview_ready.interview import Interview, build_queue
 from interview_ready.parsing import extract_text
 from interview_ready.scoring import DIMENSIONS
@@ -90,7 +90,7 @@ elif page == "4. Mock interview":
     else:
         iv: Interview = ss["interview"]
         if st.button("Restart" if iv else "Start interview", type="primary"):
-            queue = build_queue(ss["claims"], gap_questions(ss["gaps"]))
+            queue = build_queue(ss["claims"], gap_items(ss["gaps"]))
             if not queue:
                 st.warning("No questions could be built from this CV.")
             else:

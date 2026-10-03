@@ -10,7 +10,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, kind TEXT, name TEXT, text TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS claims (id INTEGER PRIMARY KEY, doc_id INTEGER, text TEXT, type TEXT, numbers TEXT, ownership TEXT);
 CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, role TEXT, notes TEXT, created TEXT);
-CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
+CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, session_id INTEGER, question TEXT, kind TEXT, ref TEXT DEFAULT '', answer TEXT, dims TEXT, fixes TEXT, total REAL, created TEXT);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT);
 """
 TABLES = ["documents", "claims", "sessions", "answers"]
@@ -22,20 +22,29 @@ def _now():
 
 def summarise(answers: list, sessions: list) -> dict:
     """Pure aggregation so every backend fetches rows once."""
-    by_session, sums = {}, {}
+    by_session, sums, refs, per_session_dims = {}, {}, {}, {}
     for a in answers:
         by_session.setdefault(a["session_id"], []).append(a["total"])
+        sd = per_session_dims.setdefault(a["session_id"], {})
         for k, v in a["dims"].items():
             sums[k] = sums.get(k, 0) + v
+            sd.setdefault(k, []).append(v)
+        ref = a.get("ref") or ""
+        if ref:
+            r = refs.setdefault(ref, {"attempts": 0, "last": 0, "best": 0})
+            r["attempts"] += 1
+            r["last"] = a["total"]
+            r["best"] = max(r["best"], a["total"])
     out = []
     for s in sessions:
         totals = by_session.get(s["id"])
         if totals:
+            sd = {k: round(sum(v) / len(v), 1) for k, v in per_session_dims[s["id"]].items()}
             out.append({"id": s["id"], "created": s["created"], "role": s.get("role") or "",
-                        "n": len(totals), "avg_total": round(sum(totals) / len(totals), 1)})
+                        "n": len(totals), "avg_total": round(sum(totals) / len(totals), 1), "dims": sd})
     n = len(answers)
     dims = {k: round(v / n, 1) for k, v in sums.items()} if n else {}
-    return {"sessions": sorted(out, key=lambda r: r["id"]), "dims": dims, "answers": n,
+    return {"sessions": sorted(out, key=lambda r: r["id"]), "dims": dims, "answers": n, "refs": refs,
             "weaknesses": sorted(dims.items(), key=lambda x: x[1])[:3]}
 
 
@@ -68,6 +77,10 @@ class Store(BaseStore):
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        cols = [r[1] for r in self.conn.execute("PRAGMA table_info(answers)")]
+        if "ref" not in cols:
+            self.conn.execute("ALTER TABLE answers ADD COLUMN ref TEXT DEFAULT ''")
+            self.conn.commit()
 
     def _q(self, sql, args=()):
         cur = self.conn.execute(sql, args)
@@ -93,14 +106,14 @@ class Store(BaseStore):
     def new_session(self, role="", notes=""):
         return self._q("INSERT INTO sessions(role,notes,created) VALUES(?,?,?)", (role, notes, _now())).lastrowid
 
-    def save_answer(self, session_id, question, kind, answer, score):
+    def save_answer(self, session_id, question, kind, answer, score, ref=""):
         self._q(
-            "INSERT INTO answers(session_id,question,kind,answer,dims,fixes,total,created) VALUES(?,?,?,?,?,?,?,?)",
-            (session_id, question, kind, answer, json.dumps(score.dims), json.dumps(score.fixes), score.total, _now()),
+            "INSERT INTO answers(session_id,question,kind,ref,answer,dims,fixes,total,created) VALUES(?,?,?,?,?,?,?,?,?)",
+            (session_id, question, kind, ref, answer, json.dumps(score.dims), json.dumps(score.fixes), score.total, _now()),
         )
 
     def list_answers(self):
-        return [{"session_id": r["session_id"], "dims": json.loads(r["dims"]), "total": r["total"], "created": r["created"]}
+        return [{"session_id": r["session_id"], "dims": json.loads(r["dims"]), "total": r["total"], "created": r["created"], "ref": r["ref"] or ""}
                 for r in self.conn.execute("SELECT * FROM answers ORDER BY id")]
 
     def list_sessions(self):
@@ -162,13 +175,13 @@ class SupabaseStore(BaseStore):
     def new_session(self, role="", notes=""):
         return self._req("POST", "sessions", json={"role": role, "notes": notes})[0]["id"]
 
-    def save_answer(self, session_id, question, kind, answer, score):
+    def save_answer(self, session_id, question, kind, answer, score, ref=""):
         self._req("POST", "answers", json={
-            "session_id": session_id, "question": question, "kind": kind, "answer": answer,
+            "session_id": session_id, "question": question, "kind": kind, "ref": ref, "answer": answer,
             "dims": score.dims, "fixes": score.fixes, "total": score.total})
 
     def list_answers(self):
-        return self._req("GET", "answers", params={"select": "session_id,dims,total,created", "order": "id"})
+        return self._req("GET", "answers", params={"select": "session_id,dims,total,created,ref", "order": "id"})
 
     def list_sessions(self):
         return self._req("GET", "sessions", params={"select": "id,created,role"})

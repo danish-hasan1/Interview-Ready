@@ -1,29 +1,53 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { post } from "@/lib/api";
 import { DIM, DIM_ORDER } from "@/lib/dims";
-import type { Analysis, InterviewState, Score } from "@/lib/types";
-import { Radar, Ring } from "./charts";
-import Icon from "./Icon";
-import { Aurora, Btn, Empty, PageHeader, RatingBar, TypeText, Waveform, ease } from "./ui";
+import { defence, SOLID_AT } from "@/lib/status";
+import type { Analysis, InterviewState, Profile, Score } from "@/lib/types";
+import type { DrillRequest } from "./Brief";
+import { Btn, CountUp, PageHeader, RatingBar, Stamp, ease } from "./ui";
 
-type Item = { q: string; kind: string; a: string; score: Score };
+type Item = { q: string; kind: string; ref: string; a: string; score: Score };
 const TARGET = 150;
-
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-export default function Practice({ analysis, notes, goPrepare, onFinished }: { analysis: Analysis | null; notes: string; goPrepare: () => void; onFinished: () => void }) {
+export default function Practice({ analysis, notes, profile, request, onConsumed, goBrief, onFinished }: {
+  analysis: Analysis | null; notes: string; profile: Profile | null; request: (DrillRequest & { id: number }) | null; onConsumed: () => void; goBrief: () => void; onFinished: () => void;
+}) {
   const [sid, setSid] = useState<number | null>(null);
   const [state, setState] = useState<InterviewState | null>(null);
   const [log, setLog] = useState<Item[]>([]);
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [speaking, setSpeaking] = useState(true);
   const [secs, setSecs] = useState(0);
+  const lastReq = useRef(0);
+  const endRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const qKey = state?.current?.question;
+
+  const order = useMemo(() => {
+    if (!analysis) return [];
+    const rank = { shaky: 0, untested: 1, solid: 2 } as const;
+    return [...analysis.claims].sort((a, b) => rank[defence(a.text, profile?.refs).state] - rank[defence(b.text, profile?.refs).state]);
+  }, [analysis, profile]);
+
+  async function start(req: DrillRequest = {}) {
+    if (!analysis) return;
+    setErr("");
+    try {
+      const r = await post<{ session_id: number; state: InterviewState }>("/interview/start", {
+        claims: req.weakest || !req.focus ? order : analysis.claims, gap_items: analysis.gap_items, notes, focus: req.focus ?? "",
+      });
+      setSid(r.session_id); setState(r.state); setLog([]); setAnswer("");
+    } catch (e) { setErr((e as Error).message); }
+  }
+
+  useEffect(() => {
+    if (request && request.id !== lastReq.current) { lastReq.current = request.id; start(request); onConsumed(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.id]);
 
   useEffect(() => {
     setSecs(0);
@@ -32,162 +56,136 @@ export default function Practice({ analysis, notes, goPrepare, onFinished }: { a
     return () => clearInterval(id);
   }, [qKey]);
 
-  if (!analysis)
-    return (
-      <>
-        <PageHeader eyebrow="Practice" title="Mock interview" />
-        <Empty title="Nothing to practise on yet" text="Upload your CV first. The interviewer builds its questions from your claims and the job description." action={<Btn onClick={goPrepare}>Go to Prepare</Btn>} />
-      </>
-    );
-
-  async function start() {
-    setErr("");
-    try {
-      const r = await post<{ session_id: number; state: InterviewState }>("/interview/start", { claims: analysis!.claims, gap_questions: analysis!.gap_questions, notes });
-      setSid(r.session_id); setState(r.state); setLog([]); setAnswer(""); setSpeaking(true);
-    } catch (e) { setErr((e as Error).message); }
-  }
+  useEffect(() => { if (!qKey && !log.length) return; endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); boxRef.current?.focus({ preventScroll: true }); }, [qKey, log.length]);
 
   async function submit() {
     if (!state?.current || !answer.trim() || sid === null || busy) return;
     setBusy(true); setErr("");
+    const cur = state.current;
     try {
       const r = await post<{ score: Score; state: InterviewState; done: boolean }>("/interview/answer", { session_id: sid, state, answer });
-      setLog((l) => [...l, { q: state.current!.question, kind: state.current!.kind, a: answer, score: r.score }]);
-      setState(r.state); setAnswer(""); setSpeaking(true);
-      if (r.done) onFinished();
+      setLog((l) => [...l, { q: cur.question, kind: cur.kind, ref: cur.ref ?? "", a: answer, score: r.score }]);
+      setState(r.state); setAnswer("");
+      onFinished();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
 
-  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
-  const total = state?.queue.length ?? 0;
-  const finished = !!state && !state.current;
-  const pressing = state?.current?.kind === "followup";
-  const latest = log[log.length - 1];
+  if (!analysis)
+    return (
+      <>
+        <PageHeader title="Practice" />
+        <div className="sheet p-8"><p className="max-w-md text-muted">Nothing to practise on yet. Brief the coach with your CV and the role first, so the questions come from your own claims.</p>
+          <Btn className="mt-4" onClick={goBrief}>Go to the board</Btn></div>
+      </>
+    );
 
   if (!state)
     return (
       <>
-        <PageHeader eyebrow="Practice" title="Ready when you are." />
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[28px] bg-side p-8 text-white sm:p-10">
-          <Aurora />
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-md">
-              <h2 className="font-display text-3xl font-extrabold">{analysis.claims.length} claims. {analysis.gap_questions.length} gap questions.</h2>
-              <p className="mt-2 text-white/70">The interviewer pushes back if you ramble, skip numbers or hide behind “we”. Answer out loud first, then type it. About a minute each.</p>
-              <Btn variant="light" className="mt-6" onClick={start}>Begin interview <Icon name="arrow" className="h-4 w-4" /></Btn>
-              {err && <p role="alert" className="mt-3 text-sm font-medium text-pink">{err}</p>}
-            </div>
-            <Orb active size={150} />
-          </div>
-        </motion.div>
+        <PageHeader title="Practice">Choose what to be tested on. Each answer is scored and the claim it tests gets a defence stamp on your board.</PageHeader>
+        <div className="grid gap-4 md:grid-cols-2">
+          <button onClick={() => start({ weakest: true })} className="sheet p-6 text-left transition-colors hover:border-ink">
+            <p className="label">Recommended</p>
+            <p className="mt-1 font-display text-xl font-bold">Weakest first</p>
+            <p className="mt-1 text-sm text-muted">Shaky and untested claims first, mixed with the role requirements your CV does not prove. Six questions.</p>
+          </button>
+          <button onClick={goBrief} className="sheet p-6 text-left transition-colors hover:border-ink">
+            <p className="label">Targeted</p>
+            <p className="mt-1 font-display text-xl font-bold">Pick a claim on the board</p>
+            <p className="mt-1 text-sm text-muted">Open any claim and press “Drill” to be questioned only on that line, from every angle.</p>
+          </button>
+        </div>
+        {err && <p role="alert" className="mt-4 text-sm font-medium text-pen">{err}</p>}
       </>
     );
 
+  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+  const total = state.queue.length;
+  const finished = !state.current;
+  const cur = state.current;
+  const pressing = cur?.kind === "followup";
+  const avg = log.length ? log.reduce((s, x) => s + x.score.total, 0) / log.length : 0;
+  const liveState = (ref: string) => {
+    const last = [...log].reverse().find((x) => x.ref === ref);
+    return last ? (last.score.total >= SOLID_AT ? "solid" : "shaky") : defence(ref, profile?.refs).state;
+  };
+
   return (
     <section>
-      <PageHeader eyebrow="Practice" title={finished ? "Interview complete." : "Mock interview"}
-        action={<Btn variant="ghost" onClick={start}>Restart</Btn>} />
+      <PageHeader title={finished ? "Session complete" : "Practice"}
+        action={<Btn variant="ghost" onClick={() => { setState(null); setLog([]); }}>End session</Btn>}>
+        {finished ? "Scores are saved and your board is updated." : "Answer as you would in the room: headline first, then points, an example, the result."}
+      </PageHeader>
 
-      <div className="mb-6 flex gap-1.5" aria-label={`Question ${Math.min(state.asked, total)} of ${total}`}>
-        {Array.from({ length: total }, (_, i) => {
-          const done = i < state.asked - (finished ? 0 : 1);
-          const cur = i === state.asked - 1 && !finished;
-          return <motion.span key={i} layout className="h-1.5 flex-1 rounded-full" animate={{ backgroundColor: done ? "#12a67a" : cur ? "#5b4bff" : "#e4e7f0" }} />;
-        })}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
-          {state.current && (
-            <motion.div key={state.current.question} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease }}
-              className={`relative overflow-hidden rounded-[22px] p-6 text-white ${pressing ? "bg-gradient-to-br from-[#7a1f19] to-pen" : "bg-side"}`}>
-              {!pressing && <Aurora />}
-              <div className="relative flex items-start gap-4">
-                <Orb active={speaking} size={56} pen={pressing} />
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 flex items-center gap-3">
-                    <span className="label !text-white/70">{pressing ? "Pushback" : `Question ${state.asked} of ${total}`}</span>
-                    <Waveform active={speaking} />
-                    <span className={`ml-auto font-mono text-sm ${secs > 75 ? "text-pink" : "text-white/70"}`}>{mmss(secs)}</span>
+          {log.map((it, i) => (
+            <div key={i} className="space-y-3">
+              <Interviewer text={it.q} pressing={it.kind === "followup"} />
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="ml-6 border-l-[3px] border-blue pl-4 text-[15px]">
+                <p className="label mb-1 !text-blue">You</p><p className="whitespace-pre-wrap">{it.a}</p>
+              </motion.div>
+              <Assessment score={it.score} refText={it.ref} state={liveState(it.ref)} />
+            </div>
+          ))}
+
+          {cur && (
+            <motion.div key={cur.question} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease }} className="space-y-3">
+              {cur.ref && !pressing && <p className="label">Testing · <span className="normal-case tracking-normal text-ink">{cur.ref}</span></p>}
+              <Interviewer text={cur.question} pressing={pressing} big />
+              <div className="sheet p-3">
+                <textarea ref={boxRef} aria-label="Your answer" value={answer} onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit(); }}
+                  className="h-40 w-full resize-y rounded-md bg-paper/60 p-3 text-[15px] outline-none focus:ring-2 focus:ring-blue/30" placeholder="Your answer…" />
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <Btn disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Scoring…" : "Submit answer"}</Btn>
+                  <span className="label hidden sm:inline">⌘ + Enter</span>
+                  <div className="ml-auto flex items-center gap-3">
+                    <div className="h-1.5 w-28 overflow-hidden rounded-full bg-line">
+                      <motion.div className="h-full" initial={false}
+                        animate={{ width: `${Math.min(100, (words / TARGET) * 100)}%`, backgroundColor: words > 180 ? "#cf3a2e" : words >= 40 ? "#157a58" : "#b9720a" }}
+                        transition={{ type: "spring", stiffness: 260, damping: 30 }} />
+                    </div>
+                    <span className="label w-24">{words} / ~{TARGET} words</span>
+                    <span className={`label w-10 text-right ${secs > 75 ? "!text-pen" : ""}`}>{mmss(secs)}</span>
                   </div>
-                  <p className="font-display text-xl font-bold leading-snug sm:text-2xl">
-                    <TypeText text={state.current.question} onDone={() => { setSpeaking(false); boxRef.current?.focus(); }} />
-                  </p>
                 </div>
               </div>
             </motion.div>
-          )}
-
-          {state.current && (
-            <div className="card p-4">
-              <textarea ref={boxRef} aria-label="Your answer" className="h-44 w-full resize-y rounded-xl bg-paper/60 p-4 text-[15px] outline-none focus:ring-2 focus:ring-brand/40"
-                value={answer} onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit(); }}
-                placeholder="Headline first, then your points, an example, the result." />
-              <div className="mt-3 flex flex-wrap items-center gap-4">
-                <Btn disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Scoring…" : "Submit answer"}</Btn>
-                <span className="label hidden sm:inline">⌘ + Enter</span>
-                <div className="flex flex-1 items-center gap-3">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                    <motion.div className="h-full" initial={false}
-                      animate={{ width: `${Math.min(100, (words / TARGET) * 100)}%`, backgroundColor: words > 180 ? "#e5453a" : words >= 40 ? "#12a67a" : "#f0a020" }}
-                      transition={{ type: "spring", stiffness: 260, damping: 30 }} />
-                  </div>
-                  <span className="label w-28 text-right">{words} / ~{TARGET} words</span>
-                </div>
-              </div>
-            </div>
           )}
 
           {finished && (
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="card flex flex-col items-center gap-3 p-8 text-center">
-              <Ring value={Math.round((log.reduce((s, x) => s + x.score.total, 0) / Math.max(1, log.length)) * 10)} size={150} label="this session" />
-              <p className="text-muted">Scores saved. Check Progress to see your weakest dimensions.</p>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="sheet p-6">
+              <p className="label">Session score</p>
+              <p className="font-display text-5xl font-extrabold"><CountUp value={+avg.toFixed(1)} decimals={1} /><span className="text-xl text-muted">/10</span></p>
+              <ul className="mt-4 space-y-2">
+                {[...new Set(log.map((l) => l.ref).filter(Boolean))].map((ref) => (
+                  <li key={ref} className="flex items-start gap-3 text-sm"><span className="w-20 shrink-0"><Stamp state={liveState(ref)} /></span><span>{ref}</span></li>
+                ))}
+              </ul>
+              <div className="mt-5 flex gap-2"><Btn onClick={goBrief}>Back to the board</Btn><Btn variant="ghost" onClick={() => start({ weakest: true })}>Another round</Btn></div>
             </motion.div>
           )}
           {err && <p role="alert" className="text-sm font-medium text-pen">{err}</p>}
-
-          {log.length > 0 && (
-            <div className="space-y-3">
-              <p className="label">Transcript</p>
-              {[...log].reverse().map((it, i) => (
-                <details key={log.length - i} className="card overflow-hidden">
-                  <summary className="flex cursor-pointer list-none items-center gap-3 p-4 text-sm hover:bg-paper/60">
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg font-display font-bold text-white ${it.score.total >= 7 ? "bg-pass" : it.score.total >= 4 ? "bg-amber" : "bg-pen"}`}>{it.score.total}</span>
-                    <span className="flex-1 truncate">{it.kind === "followup" ? "↳ " : ""}{it.q}</span>
-                  </summary>
-                  <div className="space-y-2 border-t border-line bg-paper/50 p-4 text-sm"><p className="label text-brand">You</p><p>{it.a}</p></div>
-                </details>
-              ))}
-            </div>
-          )}
+          <div ref={endRef} />
         </div>
 
-        <aside className="xl:sticky xl:top-6 xl:self-start">
-          <div className="card p-5">
-            <p className="label mb-3">Live assessment</p>
-            <AnimatePresence mode="wait">
-              {latest ? (
-                <motion.div key={log.length} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Ring value={latest.score.total * 10} size={104} stroke={10} />
-                    <Radar data={latest.score.dims} size={190} />
-                  </div>
-                  <div className="space-y-2">{DIM_ORDER.map((d) => <RatingBar key={d} label={DIM[d].label} value={latest.score.dims[d]} />)}</div>
-                  {latest.score.framework && <p className="label text-pass">Framework: {latest.score.framework}</p>}
-                  <ul className="space-y-2 border-t border-line pt-3 text-sm">
-                    {latest.score.fixes.map((f, k) => (
-                      <motion.li key={k} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + k * 0.12 }} className="flex gap-2">
-                        <span className="label mt-0.5 shrink-0 !text-pen">Fix</span>{f}
-                      </motion.li>
-                    ))}
-                  </ul>
-                </motion.div>
-              ) : (
-                <motion.p key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-muted">Submit your first answer to see scores for structure, specificity, concision, delivery and business impact.</motion.p>
-              )}
-            </AnimatePresence>
+        <aside className="lg:sticky lg:top-20 lg:self-start">
+          <div className="sheet p-4">
+            <p className="label mb-3">Session · {Math.min(state.asked, total)} of {total}</p>
+            <ol className="space-y-2">
+              {state.queue.map((t, i) => {
+                const done = i < state.asked - (finished ? 0 : 1);
+                const now = i === state.asked - 1 && !finished;
+                return (
+                  <li key={i} className={`flex gap-2 text-sm ${now ? "font-semibold" : done ? "text-muted" : "text-muted/70"}`}>
+                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${done ? "bg-solid" : now ? "bg-blue" : "bg-line"}`} />
+                    <span className="line-clamp-2">{t.question}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            {log.length > 0 && <p className="label mt-4 border-t border-line pt-3">Running average <span className="text-ink">{avg.toFixed(1)}</span></p>}
           </div>
         </aside>
       </div>
@@ -195,18 +193,29 @@ export default function Practice({ analysis, notes, goPrepare, onFinished }: { a
   );
 }
 
-/** Interviewer avatar: breathing orb with expanding rings while speaking. */
-function Orb({ active, size, pen }: { active: boolean; size: number; pen?: boolean }) {
-  const grad = pen ? "from-[#ffb199] to-pen" : "from-cyan via-brand to-pink";
+function Interviewer({ text, pressing, big }: { text: string; pressing: boolean; big?: boolean }) {
+  return pressing ? (
+    <motion.div className="pen-note" initial={{ x: -16, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 24 }}>
+      <p className="label mb-1 !text-pen">Pushback</p><p className={`font-semibold ${big ? "text-lg" : ""}`}>{text}</p>
+    </motion.div>
+  ) : (
+    <div><p className="label mb-1">Interviewer</p><p className={`font-display font-bold leading-snug ${big ? "text-2xl" : "text-lg"}`}>{text}</p></div>
+  );
+}
+
+function Assessment({ score, refText, state }: { score: Score; refText: string; state: "untested" | "shaky" | "solid" }) {
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} aria-hidden>
-      {active && [0, 1].map((i) => (
-        <motion.span key={i} className="absolute inset-0 rounded-full border border-white/40" initial={{ scale: 1, opacity: 0.6 }}
-          animate={{ scale: 1.7, opacity: 0 }} transition={{ duration: 2, repeat: Infinity, delay: i * 1, ease: "easeOut" }} />
-      ))}
-      <motion.div className={`absolute inset-0 rounded-full bg-gradient-to-br ${grad} shadow-[0_0_40px_-4px] shadow-brand/70`}
-        animate={{ scale: active ? [1, 1.06, 1] : 1, rotate: active ? [0, 8, 0] : 0 }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
-      <span className="absolute inset-[18%] rounded-full bg-white/20 backdrop-blur-sm" />
-    </div>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="sheet p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="label">Assessment</p>
+        {refText && <span className="flex items-center gap-2"><span className="label">This claim is now</span><Stamp state={state} /></span>}
+        <p className={`font-display text-3xl font-extrabold ${score.total >= 7 ? "text-solid" : score.total >= 4 ? "text-shaky" : "text-pen"}`}>{score.total}<span className="text-sm text-muted">/10</span></p>
+      </div>
+      <div className="grid gap-x-8 gap-y-1.5 md:grid-cols-2">{DIM_ORDER.map((d) => <RatingBar key={d} compact label={DIM[d].label} value={score.dims[d]} />)}</div>
+      {score.framework && <p className="label mt-3 !text-solid">Framework detected: {score.framework}</p>}
+      <ul className="mt-3 space-y-1.5 border-t border-line pt-3 text-sm">
+        {score.fixes.map((f, k) => <li key={k} className="flex gap-2"><span className="label mt-0.5 shrink-0 !text-pen">Fix</span>{f}</li>)}
+      </ul>
+    </motion.div>
   );
 }

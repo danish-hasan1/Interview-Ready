@@ -11,7 +11,7 @@ from pydantic import BaseModel  # noqa: E402
 
 from interview_ready.claims import OWNERSHIP_LEVELS, Claim, build_questions, extract_claims  # noqa: E402
 from interview_ready.db import Store, SupabaseStore  # noqa: E402
-from interview_ready.gaps import analyse_gaps, gap_questions  # noqa: E402
+from interview_ready.gaps import analyse_gaps, gap_items  # noqa: E402
 from interview_ready.interview import build_queue, start_state, step  # noqa: E402
 from interview_ready.parsing import extract_text  # noqa: E402
 
@@ -40,10 +40,17 @@ class ClaimsIn(BaseModel):
     claims: list[ClaimIn]
 
 
+class GapItem(BaseModel):
+    question: str
+    ref: str
+
+
 class StartIn(BaseModel):
     claims: list[ClaimIn]
-    gap_questions: list[str] = []
+    gap_items: list[GapItem] = []
     notes: str = ""
+    focus: str = ""
+    max_questions: int = 6
 
 
 class AnswerIn(BaseModel):
@@ -107,7 +114,7 @@ async def analyze(
     return {
         "claims": [_claim_out(c) for c in claims],
         "gaps": [asdict(g) for g in gaps],
-        "gap_questions": gap_questions(gaps),
+        "gap_items": gap_items(gaps),
     }
 
 
@@ -118,10 +125,10 @@ def claim_questions(body: ClaimsIn):
 
 @app.post("/api/interview/start")
 def interview_start(body: StartIn, store=Depends(get_store)):
-    queue = build_queue(_to_claims(body.claims), body.gap_questions)
+    queue = build_queue(_to_claims(body.claims), [g.model_dump() for g in body.gap_items], min(max(body.max_questions, 1), 10), body.focus)
     if not queue:
         raise HTTPException(400, "No questions could be built from this CV")
-    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue)}
+    return {"session_id": store.new_session(notes=body.notes), "state": start_state(queue, len(queue))}
 
 
 @app.post("/api/interview/answer")
@@ -130,7 +137,7 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
         raise HTTPException(400, "Interview already finished")
     cur = body.state["current"]
     score, new_state = step(body.state, body.answer)
-    store.save_answer(body.session_id, cur["question"], cur["kind"], body.answer, score)
+    store.save_answer(body.session_id, cur["question"], cur["kind"], body.answer, score, cur.get("ref", ""))
     return {"score": asdict(score), "state": new_state, "done": new_state["current"] is None}
 
 
@@ -150,7 +157,7 @@ def workspace(store=Depends(get_store)):
     gaps = analyse_gaps(cv["text"], jd["text"]) if jd else []
     return {"has_cv": True, "cv_name": cv.get("name") or "CV", "has_jd": bool(jd),
             "claims": [_claim_out(c) for c in claims], "gaps": [asdict(g) for g in gaps],
-            "gap_questions": gap_questions(gaps)}
+            "gap_items": gap_items(gaps)}
 
 
 @app.get("/api/export")

@@ -83,3 +83,14 @@ def gap_questions(gaps: list, limit: int = 4) -> list:
             break
         out.append(templates[i % len(templates)].format(req=g.requirement[:110]))
     return out
+
+
+def gap_items(gaps: list, limit: int = 4) -> list:
+    """Gap questions tied to the requirement they test: [{"question", "ref"}]."""
+    templates = preset("hard_questions")["gap"]
+    out = []
+    for i, g in enumerate(g for g in gaps if g.status != "evidenced"):
+        if i >= limit:
+            break
+        out.append({"question": templates[i % len(templates)].format(req=g.requirement[:110]), "ref": g.requirement})
+    return out

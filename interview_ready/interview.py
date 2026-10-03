@@ -10,6 +10,7 @@ from .scoring import follow_up_for, score_answer
 class Turn:
     question: str
     kind: str  # claim | gap | followup
+    ref: str = ""  # CV claim text or JD requirement this question tests
 
 
 @dataclass
@@ -44,18 +45,22 @@ class Interview:
             key = follow_up_for(text, score)
         if key:
             self.followups_used += 1
-            self.current = Turn(preset("pressure")[key], "followup")
+            self.current = Turn(preset("pressure")[key], "followup", self.current.ref)
             return score, self.current
         return score, self._next_main()
 
 
-def build_queue(claims: list, gap_qs: list, max_questions: int = 6) -> list:
-    """Interleave claim questions (one per claim, rotating) with gap questions."""
-    claim_turns = []
-    for c in claims:
-        if c.questions:
-            claim_turns.append(Turn(c.questions[0], "claim"))
-    gap_turns = [Turn(q, "gap") for q in gap_qs]
+def build_queue(claims: list, gap_items: list, max_questions: int = 6, focus: str = "") -> list:
+    """Interleave claim questions (one per claim, rotating) with gap questions.
+    gap_items: [{"question", "ref"}]. focus: drill one claim/requirement with all its questions."""
+    if focus:
+        for c in claims:
+            if c.text == focus:
+                return [Turn(q, "claim", c.text) for q in c.questions[:max_questions]]
+        qs = [g for g in gap_items if g["ref"] == focus]
+        return [Turn(g["question"], "gap", g["ref"]) for g in qs]
+    claim_turns = [Turn(c.questions[0], "claim", c.text) for c in claims if c.questions]
+    gap_turns = [Turn(g["question"], "gap", g["ref"]) for g in gap_items]
     queue, ci, gi = [], 0, 0
     while len(queue) < max_questions and (ci < len(claim_turns) or gi < len(gap_turns)):
         if ci < len(claim_turns):
@@ -67,7 +72,7 @@ def build_queue(claims: list, gap_qs: list, max_questions: int = 6) -> list:
     return queue
 
 
-def step(state: dict, answer: str, max_questions: int = 6, max_followups: int = 1):
+def step(state: dict, answer: str, max_questions: int = 10, max_followups: int = 1):
     """Stateless version for the API. state = {queue, asked, followups_used, current}.
     Returns (score, new_state); new_state['current'] is None when finished."""
     queue = [Turn(**t) for t in state["queue"]]
@@ -76,18 +81,18 @@ def step(state: dict, answer: str, max_questions: int = 6, max_followups: int = 
     score = score_answer(answer)
     key = follow_up_for(answer, score) if cur.kind != "followup" and used < max_followups else None
     if key:
-        nxt, used = Turn(preset("pressure")[key], "followup"), used + 1
+        nxt, used = Turn(preset("pressure")[key], "followup", cur.ref), used + 1
     elif asked >= min(max_questions, len(queue)):
         nxt = None
     else:
         nxt, asked, used = queue[asked], asked + 1, 0
     return score, {
         "queue": state["queue"], "asked": asked, "followups_used": used,
-        "current": None if nxt is None else {"question": nxt.question, "kind": nxt.kind},
+        "current": None if nxt is None else {"question": nxt.question, "kind": nxt.kind, "ref": nxt.ref},
     }
 
 
-def start_state(queue: list, max_questions: int = 6) -> dict:
+def start_state(queue: list, max_questions: int = 10) -> dict:
     qs = queue[:max_questions]
-    return {"queue": [{"question": t.question, "kind": t.kind} for t in qs], "asked": 1, "followups_used": 0,
-            "current": {"question": qs[0].question, "kind": qs[0].kind} if qs else None}
+    return {"queue": [{"question": t.question, "kind": t.kind, "ref": t.ref} for t in qs], "asked": 1, "followups_used": 0,
+            "current": {"question": qs[0].question, "kind": qs[0].kind, "ref": qs[0].ref} if qs else None}

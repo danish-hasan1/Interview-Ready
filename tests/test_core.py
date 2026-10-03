@@ -37,7 +37,7 @@ def test_scoring_rewards_structure_and_numbers():
 
 
 def test_interview_pressure_followup_and_finish():
-    iv = Interview(build_queue(extract_claims(CV), ["Tell me about P&L."], 3))
+    iv = Interview(build_queue(extract_claims(CV), [{"question": "Tell me about P&L.", "ref": "P&L"}], 3))
     iv.start()
     score, nxt = iv.answer("We did some things.")
     assert nxt.kind == "followup"

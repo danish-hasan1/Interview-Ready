@@ -1,15 +1,13 @@
 "use client";
-import { motion } from "motion/react";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import Icon from "./Icon";
-import { Btn, PageHeader, itemV, listV } from "./ui";
+import { Btn, PageHeader } from "./ui";
 
 const POINTS = [
-  ["Your CV never trains a model", "Scoring runs on built-in rules. No CV or answer text is sent to an AI service."],
+  ["Scoring runs on rules, not an AI service", "Your CV and answers are not sent to any model or third party."],
   ["Stored in your own database", "Everything lives in the database you configured. Nothing is shared or sold."],
-  ["No content in logs or URLs", "CV text and answers are never written to logs or put in links."],
-  ["You are in control", "Export everything as JSON or delete it permanently, any time."],
+  ["No content in logs or links", "CV text and answers are never written to logs or put in URLs."],
+  ["You stay in control", "Export everything as JSON or delete it permanently, any time."],
 ];
 
 export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
@@ -30,24 +28,19 @@ export default function Privacy({ onDeleted }: { onDeleted: () => void }) {
 
   return (
     <section>
-      <PageHeader eyebrow="Privacy and data" title="Your career data stays yours." />
-      <motion.div variants={listV} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2">
-        {POINTS.map(([t, d]) => (
-          <motion.div key={t} variants={itemV} className="card flex gap-4 p-5">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-pass/10 text-pass"><Icon name="lock" /></span>
-            <div><h3 className="font-display font-bold">{t}</h3><p className="text-sm text-muted">{d}</p></div>
-          </motion.div>
-        ))}
-      </motion.div>
-      <motion.div variants={itemV} initial="hidden" animate="show" className="card mt-6 p-6">
-        <p className="label mb-4">Manage your data</p>
+      <PageHeader title="Your data">CVs and interview answers are sensitive. This is how they are handled.</PageHeader>
+      <ul className="sheet divide-y divide-line">
+        {POINTS.map(([t, d]) => <li key={t} className="p-4"><p className="font-display font-bold">{t}</p><p className="text-sm text-muted">{d}</p></li>)}
+      </ul>
+      <div className="sheet mt-5 p-5">
+        <p className="label mb-3">Manage your data</p>
         <div className="flex flex-wrap items-center gap-3">
           <Btn variant="ghost" onClick={exportAll}>Export everything (JSON)</Btn>
           <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} /> Delete permanently, I understand</label>
-          <Btn disabled={!sure} onClick={del} className="!bg-none !bg-pen !shadow-none">Delete all my data</Btn>
+          <Btn disabled={!sure} onClick={del} className="!bg-pen">Delete all my data</Btn>
         </div>
-        {msg && <p role="status" className="mt-3 text-sm font-medium text-pass">{msg}</p>}
-      </motion.div>
+        {msg && <p role="status" className="mt-3 text-sm font-medium text-solid">{msg}</p>}
+      </div>
     </section>
   );
 }
