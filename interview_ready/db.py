@@ -20,6 +20,25 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def summarise(answers: list, sessions: list) -> dict:
+    """Pure aggregation so every backend fetches rows once."""
+    by_session, sums = {}, {}
+    for a in answers:
+        by_session.setdefault(a["session_id"], []).append(a["total"])
+        for k, v in a["dims"].items():
+            sums[k] = sums.get(k, 0) + v
+    out = []
+    for s in sessions:
+        totals = by_session.get(s["id"])
+        if totals:
+            out.append({"id": s["id"], "created": s["created"], "role": s.get("role") or "",
+                        "n": len(totals), "avg_total": round(sum(totals) / len(totals), 1)})
+    n = len(answers)
+    dims = {k: round(v / n, 1) for k, v in sums.items()} if n else {}
+    return {"sessions": sorted(out, key=lambda r: r["id"]), "dims": dims, "answers": n,
+            "weaknesses": sorted(dims.items(), key=lambda x: x[1])[:3]}
+
+
 class BaseStore:
     """Aggregations shared by every backend. Subclasses supply raw rows."""
 
@@ -29,26 +48,14 @@ class BaseStore:
     def list_sessions(self) -> list:  # [{id, created, role}]
         raise NotImplementedError
 
+    def profile(self) -> dict:
+        return summarise(self.list_answers(), self.list_sessions())
+
     def session_summaries(self):
-        by_session = {}
-        for a in self.list_answers():
-            by_session.setdefault(a["session_id"], []).append(a["total"])
-        out = []
-        for s in self.list_sessions():
-            totals = by_session.get(s["id"])
-            if totals:
-                out.append({"id": s["id"], "created": s["created"], "role": s.get("role") or "",
-                            "n": len(totals), "avg_total": round(sum(totals) / len(totals), 1)})
-        return sorted(out, key=lambda r: r["id"])
+        return self.profile()["sessions"]
 
     def weaknesses(self, limit=3):
-        sums, n = {}, 0
-        for a in self.list_answers():
-            n += 1
-            for k, v in a["dims"].items():
-                sums[k] = sums.get(k, 0) + v
-        avgs = sorted(((k, round(v / n, 1)) for k, v in sums.items()), key=lambda x: x[1]) if n else []
-        return avgs[:limit]
+        return self.profile()["weaknesses"][:limit]
 
 
 class Store(BaseStore):

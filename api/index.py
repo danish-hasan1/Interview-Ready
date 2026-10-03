@@ -136,7 +136,21 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
 
 @app.get("/api/profile")
 def profile(store=Depends(get_store)):
-    return {"sessions": store.session_summaries(), "weaknesses": store.weaknesses()}
+    return store.profile()
+
+
+@app.get("/api/workspace")
+def workspace(store=Depends(get_store)):
+    """Rebuild the latest analysis from stored CV/JD so a reload resumes where you left off."""
+    cv = store.latest_document("cv")
+    if not cv:
+        return {"has_cv": False}
+    jd = store.latest_document("jd")
+    claims = extract_claims(cv["text"])
+    gaps = analyse_gaps(cv["text"], jd["text"]) if jd else []
+    return {"has_cv": True, "cv_name": cv.get("name") or "CV", "has_jd": bool(jd),
+            "claims": [_claim_out(c) for c in claims], "gaps": [asdict(g) for g in gaps],
+            "gap_questions": gap_questions(gaps)}
 
 
 @app.get("/api/export")

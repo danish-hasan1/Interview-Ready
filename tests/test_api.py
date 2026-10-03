@@ -33,7 +33,10 @@ def test_full_flow():
         if r.json()["done"]:
             break
     assert r.json()["done"]
-    assert c.get("/api/profile").json()["sessions"]
+    prof = c.get("/api/profile").json()
+    assert prof["sessions"] and prof["dims"] and prof["answers"] > 0
+    ws = c.get("/api/workspace").json()
+    assert ws["has_cv"] and ws["claims"]
     assert c.get("/api/export").json()["answers"]
     assert c.delete("/api/data").json()["deleted"]
     assert not c.get("/api/profile").json()["sessions"]
@@ -42,3 +45,7 @@ def test_full_flow():
 def test_bad_upload_type():
     r = client().post("/api/analyze", files={"cv": ("cv.exe", b"x")})
     assert r.status_code == 400
+
+
+def test_workspace_empty():
+    assert client().get("/api/workspace").json() == {"has_cv": False}

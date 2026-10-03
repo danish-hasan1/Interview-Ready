@@ -15,7 +15,7 @@ export type Gap = {
   evidence: string[];
 };
 
-export type Analysis = { claims: Claim[]; gaps: Gap[]; gap_questions: string[] };
+export type Analysis = { claims: Claim[]; gaps: Gap[]; gap_questions: string[]; cv_name?: string };
 
 export type Score = {
   dims: Record<string, number>;
@@ -34,4 +34,8 @@ export type InterviewState = {
 export type Profile = {
   sessions: { id: number; created: string; n: number; avg_total: number }[];
   weaknesses: [string, number][];
+  dims: Record<string, number>;
+  answers: number;
 };
+
+export type Workspace = ({ has_cv: false } | ({ has_cv: true; cv_name: string; has_jd: boolean } & Analysis));
