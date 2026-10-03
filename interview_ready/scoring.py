@@ -15,6 +15,7 @@ class Score:
     total: float
     framework: str = ""
     notes: dict = field(default_factory=dict)
+    relevance: dict = field(default_factory=dict)
 
 
 def _words(text: str):
@@ -32,6 +33,65 @@ def _any(text: str, phrases) -> bool:
 
 def _parts(text: str, fw: dict) -> dict:
     return {name: _any(text, terms) for name, terms in fw["parts"].items()}
+
+
+def _clauses(text: str) -> list:
+    return [c for c in re.split(r"[.;:\n!?]+", text) if c.strip()]
+
+
+def _spread_ok(text: str, fw: dict) -> bool:
+    """Framework terms must sit in different clauses, not be listed in one breath."""
+    clauses = [c.lower() for c in _clauses(text)]
+    hit = set()
+    for terms in fw["parts"].values():
+        for i, c in enumerate(clauses):
+            if any(re.search(rf"(?<!\w){re.escape(t)}", c) for t in terms):
+                hit.add(i)
+    return len(words_of(text)) >= 28 and len(hit) >= fw["min_parts"] - 1
+
+
+def words_of(text: str) -> list:
+    return re.findall(r"[\w'&%$£€.-]+", text.lower())
+
+
+_Q_STOP = {"tell", "about", "what", "how", "did", "you", "your", "when", "would", "could", "please", "walk", "through", "say", "describe",
+           "give", "example", "time", "does", "that", "mean", "exactly", "specific", "part", "versus", "team", "were", "was", "who", "which",
+           "from", "with", "this", "have", "has", "the", "and", "for", "are", "can", "more", "made", "make", "business", "terms", "revenue",
+           "cost", "margin", "impact", "measured", "baseline", "before", "started", "decided", "personally", "doing", "done", "across"}
+
+
+def _stem(w: str) -> str:
+    w = w.lower().strip(".,;:!?\"'()")
+    return re.sub(r"(ing|ed|es|s|ion|ions|ly)$", "", w) if len(w) > 5 else w
+
+
+def _stems(text: str, stop: set) -> set:
+    return {_stem(w) for w in re.findall(r"[A-Za-z][A-Za-z&/+-]{2,}", text) if w.lower() not in stop and _stem(w) not in stop}
+
+
+def relevance(answer: str, ref: str = "", kind: str = "") -> dict:
+    """Does the answer touch the CV claim it is testing? Strict only for claim questions: gap, core and follow-up
+    questions can be answered with different words, so they are never marked off-topic by rules."""
+    if kind != "claim" or not ref:
+        return {"level": "on", "overlap": None, "missing": []}
+    s = preset("scoring")
+    stop = set(s["stopwords"]) | _Q_STOP
+    anchors = _stems(ref, stop)
+    nums = {n.strip(".,").replace(",", "") for n in re.findall(r"\d[\d,.]*", ref)}
+    if len(anchors) < 3:
+        return {"level": "on", "overlap": None, "missing": []}
+    ans_stems = _stems(answer, set())
+    ans_nums = {n.strip(".,").replace(",", "") for n in re.findall(r"\d[\d,.]*", answer)}
+    overlap = len(anchors & ans_stems) / len(anchors)
+    num_hit = bool(nums & ans_nums)
+    if overlap >= 0.25 or (num_hit and overlap >= 0.1):
+        level = "on"
+    elif overlap >= 0.1 or num_hit:
+        level = "partial"
+    else:
+        level = "off"
+    missing = sorted(anchors - ans_stems)[:4]
+    return {"level": level, "overlap": round(overlap, 2), "missing": missing}
 
 
 def expected_framework(question: str) -> str:
@@ -66,6 +126,10 @@ def score_structure(answer: str, s: dict):
     b = sum([context, action, result, example])
     fws = s["frameworks"]
     biz, adv = _parts(answer, fws["business"]), _parts(answer, fws["advisory"])
+    if not _spread_ok(answer, fws["business"]):
+        biz = {k: False for k in biz}
+    if not _spread_ok(answer, fws["advisory"]):
+        adv = {k: False for k in adv}
     nb, na = sum(biz.values()), sum(adv.values())
     impact = _any(answer, s["impact"])
     fracs = [a / 4, b / 4, nb / 6, na / 5]
@@ -123,7 +187,7 @@ def score_impact(answer: str, s: dict):
     return (6 if hits else 0), hits
 
 
-def score_answer(answer: str, question: str = "") -> Score:
+def score_answer(answer: str, question: str = "", ref: str = "", kind: str = "") -> Score:
     s = preset("scoring")
     structure, fw, parts = score_structure(answer, s)
     specificity, spec_n = score_specificity(answer, s)
@@ -161,7 +225,16 @@ def score_answer(answer: str, question: str = "") -> Score:
     if not fixes and answer.strip():
         fixes = ["Solid. Next: keep this structure under pressure and tighten the headline."]
     total = round(sum(dims.values()) / len(dims), 1)
-    return Score(dims, fixes, total, fw, {"words": wc, "fillers": filler_found, "structure_parts": parts})
+    rel = relevance(answer, ref, kind)
+    if rel["level"] == "off":
+        total = min(total, 3.0)
+        fixes = ["This does not answer the question. Anchor it to the claim being tested: " + ", ".join(rel["missing"] or ["your own line"]) + "."] + fixes[:2]
+    elif rel["level"] == "partial":
+        total = min(total, 6.5)
+        fixes = ["Tie the answer to the claim itself. You did not mention: " + ", ".join(rel["missing"] or ["its key terms"]) + "."] + fixes[:2]
+    if wc < 25 and answer.strip():
+        total = min(total, 5.0)  # too thin to be a real answer, whatever the keywords
+    return Score(dims, fixes, total, fw, {"words": wc, "fillers": filler_found, "structure_parts": parts}, rel)
 
 
 def follow_up_for(answer: str, score: Score):

@@ -174,9 +174,15 @@ def interview_answer(body: AnswerIn, store=Depends(get_store)):
         raise HTTPException(400, "Interview already finished")
     cur = body.state["current"]
     score, new_state = step(body.state, body.answer)
+    coach = _coach(store, cur["question"], body.answer, score, cur.get("ref", ""), cur["kind"])
+    if coach and coach.get("answers_question") is False and score.total > 4.0:
+        score.total = 4.0  # the AI read says it dodged the question, so the rules cannot give it a pass
+        score.fixes.insert(0, "AI read: this does not answer the question that was asked.")
+    nxt = new_state.get("current")
+    if coach and coach.get("follow_up") and nxt and nxt["kind"] == "followup":
+        nxt["question"] = coach["follow_up"]  # probe what the candidate actually said instead of a canned line
     store.save_answer(body.session_id, cur["question"], cur["kind"], body.answer, score, cur.get("ref", ""))
-    return {"score": asdict(score), "state": new_state, "done": new_state["current"] is None,
-            "coach": _coach(store, cur["question"], body.answer, score)}
+    return {"score": asdict(score), "state": new_state, "done": nxt is None, "coach": coach}
 
 
 class CheckIn(BaseModel):
@@ -269,8 +275,15 @@ def store_cache():
     return _store if isinstance(_store, Store) else None
 
 
-def _coach(store, question, answer, score):
+def _coach(store, question, answer, score, ref="", kind=""):
+    """Approved library note first (free), then AI grade when opted in, then local model, else nothing."""
     try:
+        lib = store.find_approved(question)
+        if lib:
+            return {"text": lib, "source": "library"}
+        if ai_layer.is_on(store, "coaching"):
+            g = ai_layer.ai_grade(store, question, ref, answer, score.dims)
+            return {"text": g["note"], "source": "model", "answers_question": g["answers_question"], "follow_up": g["follow_up"]}
         return coach_note(question, answer, score.dims, score.fixes, store, _provider(store))
     except Exception:  # model problems must never break scoring
         return None

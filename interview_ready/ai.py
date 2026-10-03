@@ -220,3 +220,23 @@ def ai_tighten_story(store, theme_id: str, fields: dict, provider: LLMProvider |
     before, after = check_story(theme_id, src), check_story(theme_id, clean)
     return {"fields": clean, "note": str(raw.get("note", ""))[:300], "before": before["score"], "after": after["score"],
             "better": after["score"] >= before["score"]}
+
+
+# ---------- answer grading and contextual follow-up ----------
+G_SYSTEM = (
+    "You are a sharp interviewer. Given the question, the CV line being tested (may be empty) and the candidate's answer, return JSON: "
+    "{\"answers_question\": true|false, \"note\": str, \"follow_up\": str}. answers_question is false if the answer is off topic or dodges the question. "
+    "note: one specific improvement in at most 40 words, quoting the candidate's own words. "
+    "follow_up: ONE probing question about a specific claim inside the answer, at most 25 words. Do not invent facts."
+)
+
+
+def ai_grade(store, question: str, ref: str, answer: str, dims: dict, provider: LLMProvider | None = None) -> dict:
+    ans = redact_cv(answer)["text"]
+    user = f"Question: {question}\nCV line tested: {ref or '(none)'}\nAnswer: {ans[:3000]}\nRule-based scores: {dims}"
+    raw = call_json(store, "coaching", G_SYSTEM, user, provider)
+    ok = raw.get("answers_question")
+    note, fu = str(raw.get("note") or "").strip(), str(raw.get("follow_up") or "").strip()
+    if not isinstance(ok, bool) or not note:
+        raise AIBadOutput("Model returned an incomplete grade")
+    return {"answers_question": ok, "note": note[:400], "follow_up": fu[:200] if 8 < len(fu) < 220 else ""}

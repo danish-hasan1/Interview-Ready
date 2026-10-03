@@ -79,7 +79,7 @@ def step(state: dict, answer: str, max_questions: int = 10, max_followups: int =
     cur = Turn(**state["current"])
     asked, used = state["asked"], state["followups_used"]
     max_followups = state.get("max_followups", max_followups)
-    score = score_answer(answer, cur.question)
+    score = score_answer(answer, cur.question, cur.ref, cur.kind)
     key = follow_up_for(answer, score) if cur.kind != "followup" and used < max_followups else None
     if key:
         phrases = {**preset("pressure"), **state.get("phrases", {})}

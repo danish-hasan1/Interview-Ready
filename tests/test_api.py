@@ -214,3 +214,37 @@ def test_cv_review_versions_after_reupload():
     c.post("/api/analyze", files={"cv": ("v2.txt", CV + b"- Cut agency spend by 31% across 8 suppliers\n")})
     v = c.get("/api/cv-review").json()["versions"]
     assert [x["name"] for x in v] == ["v1.txt", "v2.txt"] and all("score" in x for x in v)
+
+
+def test_ai_grade_caps_dodged_answers_and_probes(monkeypatch):
+    import json
+    from interview_ready import ai as ai_layer
+    from interview_ready.llm_provider import LLMProvider
+
+    c = client()
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    body = c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD}).json()
+    c.post("/api/ai/settings", json={"enabled": True, "consent": True})
+
+    class Fake(LLMProvider):
+        def complete(self, prompt, system="", json_mode=False):
+            return json.dumps({"answers_question": False, "note": "You talked about hiking, not the 62 to 38 days.",
+                               "follow_up": "You said the process improved. Which step saved the most days?"})
+
+    monkeypatch.setattr(ai_layer, "GroqProvider", lambda: Fake())
+    start = c.post("/api/interview/start", json={"claims": body["claims"], "gap_items": body["gap_items"]}).json()
+    good = ("The baseline was 62 days measured in our ATS. First, I rebuilt sourcing. Second, I automated screening. Third, I trained managers. "
+            "For example, automation saved 11 days across 120 roles. The result was about $0.4M a year in vacancy cost.")
+    r = c.post("/api/interview/answer", json={"session_id": start["session_id"], "state": start["state"], "answer": good}).json()
+    assert r["score"]["total"] <= 4.0 and r["score"]["fixes"][0].startswith("AI read")
+    assert r["coach"]["follow_up"].startswith("You said")
+
+
+def test_off_topic_answer_is_capped_by_rules_in_the_flow():
+    c = client()
+    body = c.post("/api/analyze", files={"cv": ("cv.txt", CV)}, data={"jd_text": JD}).json()
+    start = c.post("/api/interview/start", json={"claims": body["claims"], "gap_items": body["gap_items"]}).json()
+    hike = ("I love hiking. First, I plan the route carefully. Second, I check the weather forecast. Third, I pack the right gear. "
+            "For example, in 2023 I hiked 12 peaks and saved $200 on equipment. The result was a great summer and better fitness.")
+    r = c.post("/api/interview/answer", json={"session_id": start["session_id"], "state": start["state"], "answer": hike}).json()
+    assert r["score"]["total"] <= 3.5 and "does not answer" in r["score"]["fixes"][0]
