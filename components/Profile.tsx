@@ -32,19 +32,19 @@ export default function Profile({ onDeleted }: { onDeleted: () => void }) {
       {p && p.sessions.length === 0 && <Empty text="No interviews scored yet. Finish a mock interview and your progress shows up here." />}
       {p && p.sessions.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-2">
-          <div className="card p-5">
+          <div className="card card-accent p-5">
             <p className="label mb-4">Average score per session</p>
             <div className="flex h-40 items-end gap-2">
               {p.sessions.map((s) => (
                 <div key={s.id} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`Session ${s.id}: ${s.avg_total}/10`}>
                   <CountUp value={s.avg_total} className="font-mono text-xs" />
-                  <motion.div className="w-full origin-bottom rounded-t bg-cobalt" style={{ height: `${s.avg_total * 10}%` }}
+                  <motion.div className="w-full origin-bottom rounded-t bg-gradient-to-t from-teal to-cobalt" style={{ height: `${s.avg_total * 10}%` }}
                     initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.1 + s.id * 0.02, duration: 0.6, ease }} />
                 </div>
               ))}
             </div>
           </div>
-          <div className="card p-5">
+          <div className="card card-accent p-5">
             <p className="label mb-4">Weakest dimensions — work on these first</p>
             <div className="space-y-3">{p.weaknesses.map(([d, v]) => <RatingBar key={d} label={d} value={v} />)}</div>
           </div>

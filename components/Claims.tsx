@@ -4,7 +4,7 @@ import { OWNERSHIP, type Analysis, type Claim } from "@/lib/types";
 import { AnimatePresence, motion } from "motion/react";
 import { Btn, Empty, PageTitle, itemV, listV } from "./ui";
 
-const TYPE_STYLE = { metric: "bg-cobalt/10 text-cobalt", action: "bg-ink/10 text-ink", title: "bg-amber/15 text-amber" } as const;
+const TYPE_STYLE = { metric: "bg-cobalt/12 text-cobalt", action: "bg-teal/15 text-teal", title: "bg-pink/12 text-pink" } as const;
 
 export default function Claims({ analysis, setAnalysis, goInputs, next }: {
   analysis: Analysis | null; setAnalysis: (a: Analysis) => void; goInputs: () => void; next: () => void;
@@ -41,8 +41,8 @@ export default function Claims({ analysis, setAnalysis, goInputs, next }: {
                   {OWNERSHIP.map((o) => (
                     <motion.button key={o} role="radio" aria-checked={c.ownership === o} onClick={() => setOwnership(i, o)}
                       whileTap={{ scale: 0.93 }} whileHover={{ y: -1 }}
-                      className={`relative rounded-full border px-3 py-1 text-sm transition-colors ${c.ownership === o ? "border-ink text-white" : "border-line bg-card hover:border-ink"}`}>
-                      {c.ownership === o && <motion.span layoutId={`own-${i}`} className="absolute inset-0 rounded-full bg-ink" transition={{ type: "spring", stiffness: 500, damping: 32 }} />}
+                      className={`relative rounded-full border px-3 py-1 text-sm transition-colors ${c.ownership === o ? "border-accent text-white" : "border-line bg-card hover:border-accent"}`}>
+                      {c.ownership === o && <motion.span layoutId={`own-${i}`} className="absolute inset-0 rounded-full bg-accent" transition={{ type: "spring", stiffness: 500, damping: 32 }} />}
                       <span className="relative">{o}</span>
                     </motion.button>
                   ))}
@@ -55,7 +55,7 @@ export default function Claims({ analysis, setAnalysis, goInputs, next }: {
                   <AnimatePresence mode="popLayout" initial={false}>
                     {c.questions.map((q, k) => (
                       <motion.li key={q} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-                        transition={{ delay: k * 0.04 }} className="border-l-2 border-pen/60 pl-3">{q}</motion.li>
+                        transition={{ delay: k * 0.04 }} className="border-l-2 border-accent/60 pl-3">{q}</motion.li>
                     ))}
                   </AnimatePresence>
                 </ul>

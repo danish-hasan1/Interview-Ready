@@ -19,7 +19,7 @@ export default function Gaps({ analysis, goInputs, next }: { analysis: Analysis 
       <PageTitle eyebrow="Step 3 · Gaps" title="Where the role asks for more than your CV shows." />
       <motion.div className="mb-6 grid grid-cols-3 gap-3" variants={listV} initial="hidden" animate="show">
         {(["missing", "weak", "evidenced"] as const).map((s) => (
-          <motion.div key={s} variants={itemV} className="card p-4">
+          <motion.div key={s} variants={itemV} className={`card p-4 ${s === "missing" ? "bg-pen/8" : s === "weak" ? "bg-amber/10" : "bg-pass/8"}`}>
             <CountUp value={count(s)} className={`block font-display text-4xl font-extrabold ${STYLE[s].chip}`} />
             <p className="label mt-1">{STYLE[s].text}</p>
           </motion.div>

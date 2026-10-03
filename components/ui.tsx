@@ -49,8 +49,8 @@ export function CountUp({ value, className, decimals = 1 }: { value: number; cla
 export function PageTitle({ eyebrow, title, children }: { eyebrow: string; title: string; children?: React.ReactNode }) {
   return (
     <motion.header className="mb-8" initial="hidden" animate="show" variants={listV}>
-      <motion.p variants={itemV} className="label mb-2">{eyebrow}</motion.p>
-      <motion.h2 variants={itemV} className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">{title}</motion.h2>
+      <motion.p variants={itemV} className="label mb-3 inline-block rounded-full bg-accent/10 px-2.5 py-1 !text-accent">{eyebrow}</motion.p>
+      <motion.h2 variants={itemV} className="block font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">{title}</motion.h2>
       {children && <motion.p variants={itemV} className="mt-3 max-w-xl text-muted">{children}</motion.p>}
     </motion.header>
   );

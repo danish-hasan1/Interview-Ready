@@ -77,7 +77,7 @@ export default function Interview({ analysis, notes, goInputs }: { analysis: Ana
             {Array.from({ length: total }, (_, i) => (
               <motion.span key={i} layout className="h-1.5 rounded-full"
                 animate={{ width: i === state.asked - 1 && !finished ? 44 : 32,
-                  backgroundColor: i < state.asked - (finished ? 0 : 1) ? "#1d8a6c" : i === state.asked - 1 && !finished ? "#2446d6" : "#d3dae1" }}
+                  backgroundColor: i < state.asked - (finished ? 0 : 1) ? "#1d8a6c" : i === state.asked - 1 && !finished ? "#d03a2f" : "#d3dae1" }}
                 transition={{ type: "spring", stiffness: 300, damping: 26 }} />
             ))}
           </div>
@@ -89,11 +89,11 @@ export default function Interview({ analysis, notes, goInputs }: { analysis: Ana
         {log.map((it, i) => (
           <div key={i} className="space-y-3">
             <Question q={it.q} pressing={it.kind === "followup"} />
-            <motion.div {...pop} transition={{ ...pop.transition, delay: 0.1 }} className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-cobalt/10 p-4 text-[15px]"><p className="label mb-1 text-cobalt">You</p>{it.a}</motion.div>
-            <motion.div {...pop} transition={{ ...pop.transition, delay: 0.25 }} className="card p-4">
+            <motion.div {...pop} transition={{ ...pop.transition, delay: 0.1 }} className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-gradient-to-br from-cobalt/15 to-violet/15 p-4 text-[15px]"><p className="label mb-1 text-cobalt">You</p>{it.a}</motion.div>
+            <motion.div {...pop} transition={{ ...pop.transition, delay: 0.25 }} className="card card-accent p-4">
               <div className="mb-3 flex items-baseline justify-between">
                 <p className="label">Assessment</p>
-                <p className="font-display text-3xl font-extrabold"><CountUp value={it.score.total} /><span className="text-base text-muted">/10</span></p>
+                <p className={`font-display text-3xl font-extrabold ${it.score.total >= 7 ? "text-pass" : it.score.total >= 4 ? "text-amber" : "text-pen"}`}><CountUp value={it.score.total} /><span className="text-base text-muted">/10</span></p>
               </div>
               <div className="space-y-2">{Object.entries(it.score.dims).map(([d, v]) => <RatingBar key={d} label={d} value={v} />)}</div>
               {it.score.framework && <p className="label mt-3 text-pass">Framework detected: {it.score.framework}</p>}
@@ -107,7 +107,7 @@ export default function Interview({ analysis, notes, goInputs }: { analysis: Ana
         {state.current && (
           <div className="space-y-3">
             <Question key={state.current.question} q={state.current.question} pressing={pressing} big />
-            <textarea aria-label="Your answer" className="card h-40 w-full resize-y p-4 text-[15px] outline-none focus:border-cobalt"
+            <textarea aria-label="Your answer" className="card h-40 w-full resize-y p-4 text-[15px] outline-none focus:border-accent"
               value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Answer as you would out loud. Headline first, then your points, an example, the result." />
             <div className="flex items-center gap-4">
               <Btn disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Scoring…" : "Submit answer"}</Btn>
